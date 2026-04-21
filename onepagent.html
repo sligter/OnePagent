@@ -8477,7 +8477,12 @@ function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').re
 function iconHtml(icon, cls='ui-icon') {
   const v = (icon == null) ? '' : String(icon).trim();
   const m = v.match(/^i:([a-z0-9-]+)$/i);
-  if (m) return `<svg class="${cls}" aria-hidden="true"><use href="#i-${m[1].toLowerCase()}"></use></svg>`;
+  if (m) {
+    const id = `i-${m[1].toLowerCase()}`;
+    // Note: some browsers/WebViews (notably older Safari/iOS in-app browsers)
+    // still require xlink:href for <use>. Provide both for compatibility.
+    return `<svg class="${cls}" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><use href="#${id}" xlink:href="#${id}"></use></svg>`;
+  }
   // Fallback: render whatever string was stored (escaped).
   return `<span class="emoji-icon">${esc(v || '')}</span>`;
 }
