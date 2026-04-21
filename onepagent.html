@@ -493,6 +493,7 @@ body { font-family: 'Inter', sans-serif; background: var(--bg-root); color: var(
 .top-right { margin-left: auto; display: flex; align-items: center; gap: clamp(4px, 0.6vw, 8px); flex-shrink: 0; }
 .provider-badge { font-size: clamp(10px, 1vw, 11px); color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; padding: clamp(2px, 0.3vw, 3px) clamp(6px, 0.8vw, 10px); background: var(--bg-card); border: 1px solid var(--border); border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .model-select { background: var(--bg-root); border: 1px solid var(--border); border-radius: 4px; color: var(--text-primary); font-family: 'JetBrains Mono', monospace; font-size: clamp(10px, 1vw, 11px); padding: 2px 6px; outline: none; max-width: clamp(100px, 16vw, 220px); cursor: pointer; }
+.provider-select { background: var(--bg-root); border: 1px solid var(--border); border-radius: 4px; color: var(--text-primary); font-family: 'JetBrains Mono', monospace; font-size: clamp(10px, 1vw, 11px); padding: 2px 6px; outline: none; max-width: clamp(120px, 18vw, 240px); cursor: pointer; }
 .model-select:focus { border-color: var(--accent-orange); }
 .think-badge { font-size: clamp(10px, 1vw, 11px); color: var(--text-secondary); font-family: 'Inter', sans-serif; padding: clamp(2px, 0.3vw, 3px) clamp(4px, 0.6vw, 8px); background: var(--bg-card); border: 1px solid var(--border); border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .think-badge.on { border-color: var(--accent-purple); color: var(--accent-purple); }
@@ -1141,7 +1142,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="status-dot" id="statusDot"></div>
     <span class="status-text" id="statusText" data-i18n="status.ready">Ready</span>
     <div class="top-right">
-      <span class="provider-badge" id="providerBadge"><span id="providerLabel">anthropic</span> / <select id="modelSelect" class="model-select"><option value="">loading...</option></select></span>
+      <span class="provider-badge" id="providerBadge"><select id="providerSelect" class="provider-select" title="Provider"><option value="">provider...</option></select> / <select id="modelSelect" class="model-select"><option value="">model...</option></select></span>
       <span class="think-badge" id="thinkBadge" title="Thinking level" data-i18n-title="think.title"><select id="thinkSelect" class="think-select" onchange="setThinkingLevel(this.value)"><option value="off" data-i18n="think.off">Off</option><option value="minimal" data-i18n="think.minimal">Minimal</option><option value="low" data-i18n="think.low">Low</option><option value="medium" data-i18n="think.medium">Medium</option><option value="high" data-i18n="think.high">High</option><option value="xhigh" data-i18n="think.xhigh">XHigh</option></select></span>
       <span class="loop-badge" id="loopBadge">Loop: 0</span>
       <span class="loop-badge" id="tokenBadge">Tokens: 0</span>
@@ -1479,11 +1480,20 @@ document.addEventListener('DOMContentLoaded', function() {
       <button class="modal-close" onclick="closeSettingsModal()">&times;</button>
     </div>
     <div class="modal-body">
-      <label data-i18n="settings.provider">LLM Provider</label>
-      <select id="setProvider" onchange="onProviderChange()" style="width:100%;padding:8px 10px;background:var(--bg-root);border:1px solid var(--border);border-radius:5px;color:var(--text-primary);font-family:'JetBrains Mono',monospace;font-size:12px;margin-bottom:12px">
-        <option value="anthropic">anthropic</option>
-        <option value="openai">openai</option>
-        <option value="deepseek">deepseek</option>
+      <label data-i18n="settings.providerProfiles">Provider Profiles</label>
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px">
+        <select id="setProviderProfile" onchange="onProviderProfileSelect()" style="flex:1;padding:8px 10px;background:var(--bg-root);border:1px solid var(--border);border-radius:5px;color:var(--text-primary);font-family:'JetBrains Mono',monospace;font-size:12px">
+          <option value="">loading...</option>
+        </select>
+        <button type="button" class="modal-btn secondary" onclick="newProviderProfile()" style="padding:6px 10px;font-size:11px">+ <span data-i18n="settings.newProvider">New</span></button>
+        <button type="button" class="modal-btn secondary" onclick="deleteCurrentProviderProfile()" style="padding:6px 10px;font-size:11px;color:var(--accent-red);border-color:rgba(255,107,107,.35)">&times; <span data-i18n="settings.deleteProvider">Delete</span></button>
+      </div>
+      <label data-i18n="settings.providerName">Provider Name</label>
+      <input type="text" id="setProviderName" placeholder="My gateway / OpenAI / Anthropic compat" style="margin-bottom:12px">
+      <label data-i18n="settings.providerType">Provider Type</label>
+      <select id="setProvider" onchange="onProviderTypeChange()" style="width:100%;padding:8px 10px;background:var(--bg-root);border:1px solid var(--border);border-radius:5px;color:var(--text-primary);font-family:'JetBrains Mono',monospace;font-size:12px;margin-bottom:12px">
+        <option value="anthropic_compat">anthropic-compatible</option>
+        <option value="openai_compat">openai-compatible</option>
       </select>
       <label><span data-i18n="settings.endpoint">API Endpoint</span> <span style="text-transform:none;color:var(--text-dim)" data-i18n="settings.endpointHint">(base URL, e.g. https://api.anthropic.com)</span></label>
       <input type="text" id="setEndpoint" placeholder="https://api.anthropic.com">
@@ -2090,6 +2100,11 @@ const I18N = {
     'modal.add': '添加',
     // Settings modal
     'settings.title': '设置',
+    'settings.providerProfiles': '提供方配置',
+    'settings.newProvider': '新增',
+    'settings.deleteProvider': '删除',
+    'settings.providerName': '提供方名称',
+    'settings.providerType': '提供方类型',
     'settings.provider': 'LLM 提供方',
     'settings.endpoint': 'API 端点',
     'settings.endpointHint': '（基础 URL，例如 https://api.anthropic.com）',
@@ -2307,7 +2322,7 @@ function initThinkingControl() {
 }
 function applyThinkingToRequestBody(body, provider) {
   if (!body || THINK_LEVEL === 'off') return body;
-  if (provider === 'anthropic') {
+  if (provider === 'anthropic_compat') {
     const budget = ANTHROPIC_THINK_BUDGET[THINK_LEVEL] || 0;
     if (budget > 0) {
       body.thinking = { type: 'enabled', budget_tokens: budget };
@@ -2396,8 +2411,64 @@ function saveSettingsToStorage(s) {
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch {}
 }
 const _userSettings = loadSettings();
-let PROVIDER = _userSettings.api_provider || CFG.api_provider || 'anthropic';
-let API_MODEL = localStorage.getItem('ba_selected_model') || _userSettings.api_model || CFG.api_model || 'claude-sonnet-4-20250514';
+// Provider profiles (user-defined). Each provider is either anthropic-compatible or openai-compatible.
+const PROVIDERS_KEY = 'ba_providers_v1';
+const ACTIVE_PROVIDER_KEY = 'ba_active_provider_id';
+function _loadProviders() {
+  try { const raw = localStorage.getItem(PROVIDERS_KEY); if (raw) return JSON.parse(raw); } catch {}
+  return null;
+}
+function _saveProviders(obj) { try { localStorage.setItem(PROVIDERS_KEY, JSON.stringify(obj)); } catch {} }
+function _genProviderId() { return 'prov_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+function migrateLegacyProviderSettingsIntoProfiles() {
+  // If profiles already exist, do nothing.
+  const existing = _loadProviders();
+  if (existing && existing.providers && Object.keys(existing.providers).length) return;
+
+  const legacyProvider = (_userSettings.api_provider || CFG.api_provider || 'anthropic').trim();
+  const legacyType = (legacyProvider === 'anthropic') ? 'anthropic_compat' : 'openai_compat';
+  const legacyEndpoint = (_userSettings.api_endpoint || CFG.api_endpoint || (legacyType === 'anthropic_compat' ? 'https://api.anthropic.com' : 'https://api.openai.com')).trim();
+  const legacyKey = (_userSettings.api_key || CFG.api_key || '').trim();
+  const legacyModels = _userSettings.api_models || CFG.api_models || [];
+  const legacyDefaultModel = _userSettings.api_model || CFG.api_model || (legacyType === 'anthropic_compat' ? 'claude-sonnet-4-20250514' : 'gpt-4o');
+  const legacyModelContexts = _userSettings.model_contexts || CFG.model_contexts || {};
+
+  const id = _genProviderId();
+  const name = legacyProvider + ' (migrated)';
+  _saveProviders({
+    providers: {
+      [id]: { id, name, type: legacyType, endpoint: legacyEndpoint, apiKey: legacyKey, models: legacyModels, defaultModel: legacyDefaultModel, model_contexts: legacyModelContexts }
+    }
+  });
+  try { localStorage.setItem(ACTIVE_PROVIDER_KEY, id); } catch {}
+}
+
+function getActiveProviderId() {
+  try { return localStorage.getItem(ACTIVE_PROVIDER_KEY) || ''; } catch { return ''; }
+}
+function setActiveProviderId(id) {
+  try { localStorage.setItem(ACTIVE_PROVIDER_KEY, id); } catch {}
+}
+function getProvidersMap() {
+  const obj = _loadProviders();
+  return (obj && obj.providers && typeof obj.providers === 'object') ? obj.providers : {};
+}
+function getActiveProviderProfile() {
+  const m = getProvidersMap();
+  const ids = Object.keys(m);
+  if (!ids.length) return null;
+  const active = getActiveProviderId();
+  if (active && m[active]) return m[active];
+  // fallback: first provider
+  return m[ids[0]];
+}
+
+migrateLegacyProviderSettingsIntoProfiles();
+
+let ACTIVE_PROVIDER = getActiveProviderProfile();
+let PROVIDER = (ACTIVE_PROVIDER && ACTIVE_PROVIDER.type) ? ACTIVE_PROVIDER.type : 'anthropic_compat';
+let API_MODEL = localStorage.getItem('ba_selected_model') || (ACTIVE_PROVIDER && ACTIVE_PROVIDER.defaultModel) || _userSettings.api_model || CFG.api_model || 'claude-sonnet-4-20250514';
 const BASE_URL = window.location.href.split('?')[0].replace(/\/$/, '');
 const CONFIG_URL = BASE_URL + '/config';
 const ANTHROPIC_MAX_TOKENS = 16000;
@@ -2420,17 +2491,72 @@ function applyModelContextLimit() {
   updateMemoryUI();
 }
 
-document.getElementById('providerLabel').textContent = PROVIDER;
-// Populate model dropdown from settings/injected config (immediate, before /config fetch)
-const _cfgModels = _userSettings.api_models || CFG.api_models || [API_MODEL];
-document.getElementById('modelSelect').innerHTML = _cfgModels.map(m =>
-  `<option value="${m}"${m === API_MODEL ? ' selected' : ''}>${m}</option>`
-).join('');
+// Provider select populated at init
+
+// Populate provider + model dropdowns from provider profiles (immediate)
+function populateProviderSelect() {
+  const sel = document.getElementById('providerSelect');
+  if (!sel) return;
+  const providers = getProvidersMap();
+  const ids = Object.keys(providers);
+  if (!ids.length) {
+    sel.innerHTML = '<option value=>(no provider)</option>';
+    return;
+  }
+  const active = (ACTIVE_PROVIDER && ACTIVE_PROVIDER.id) ? ACTIVE_PROVIDER.id : (ids[0]);
+  sel.innerHTML = ids.map(id => `<option value="${esc(id)}"${id === active ? ' selected' : ''}>${esc(providers[id].name || id)}</option>`).join('');
+}
+
+function populateModelSelectFromActiveProvider() {
+  const modelSel = document.getElementById('modelSelect');
+  if (!modelSel) return;
+  const p = ACTIVE_PROVIDER;
+  const models = (p && Array.isArray(p.models)) ? p.models : [];
+  const list = models.length ? models.slice() : [API_MODEL];
+  // Ensure current model is present
+  if (API_MODEL && !list.includes(API_MODEL)) list.unshift(API_MODEL);
+  modelSel.innerHTML = list.map(m => `<option value="${esc(m)}"${m === API_MODEL ? ' selected' : ''}>${esc(m)}</option>`).join('');
+}
+
+document.getElementById('providerSelect').addEventListener('change', e => {
+  const id = e.target.value;
+  const providers = getProvidersMap();
+  if (!id || !providers[id]) return;
+  ACTIVE_PROVIDER = providers[id];
+  setActiveProviderId(id);
+  PROVIDER = ACTIVE_PROVIDER.type || 'openai_compat';
+  // Switch model to provider default if available
+  API_MODEL = ACTIVE_PROVIDER.defaultModel || (Array.isArray(ACTIVE_PROVIDER.models) && ACTIVE_PROVIDER.models[0]) || API_MODEL;
+  localStorage.setItem('ba_selected_model', API_MODEL);
+  // Update endpoint/key in runtime keys
+  _keys = Object.assign(_keys || {}, {
+    api_key: (ACTIVE_PROVIDER.apiKey || ''),
+    api_endpoint: (ACTIVE_PROVIDER.endpoint || ''),
+    api_models: (ACTIVE_PROVIDER.models || []),
+    api_model: API_MODEL,
+    model_contexts: (ACTIVE_PROVIDER.model_contexts || {})
+  });
+  CFG.api_endpoint = _keys.api_endpoint;
+  // Update MODEL_CONTEXTS in place
+  Object.keys(MODEL_CONTEXTS).forEach(k => delete MODEL_CONTEXTS[k]);
+  if (_keys.model_contexts && typeof _keys.model_contexts === 'object') Object.assign(MODEL_CONTEXTS, _keys.model_contexts);
+  applyModelContextLimit();
+  // refresh SW config
+  if (_swReady && navigator.serviceWorker?.controller) {
+    try { navigator.serviceWorker.controller.postMessage({ type: 'SET_CONFIG', api_key: _keys.api_key, tavily_api_key: _keys.tavily_api_key, provider: PROVIDER, api_endpoint: _keys.api_endpoint }); } catch {}
+  }
+  populateModelSelectFromActiveProvider();
+  updateWsStatus();
+});
+
 document.getElementById('modelSelect').addEventListener('change', e => {
   API_MODEL = e.target.value;
   localStorage.setItem('ba_selected_model', API_MODEL);
   applyModelContextLimit();
 });
+
+populateProviderSelect();
+populateModelSelectFromActiveProvider();
 
 // ── Service Worker (inline) ─────────────────────────────────────
 const SW_SRC = `
@@ -2440,19 +2566,21 @@ self.addEventListener('message', e => {
 self.addEventListener('fetch', e => {
   const cfg = self._cfg;
   if (!cfg) return;
+  const apiBase = (cfg.api_endpoint || '').replace(/\/+$/, '');
   const u = new URL(e.request.url);
   // Intercept LLM API calls
   if (u.pathname.includes('/v1/messages') || u.pathname.includes('/v1/chat/completions') || u.pathname.includes('/v1/models')) {
     e.respondWith((async () => {
       const h = new Headers(e.request.headers);
-      if (cfg.provider === 'anthropic') {
+      const targetUrl = apiBase ? (apiBase + u.pathname + u.search) : e.request.url;
+      if (cfg.provider === 'anthropic_compat') {
         h.set('x-api-key', cfg.api_key);
         h.set('anthropic-version', '2023-06-01');
         h.set('anthropic-dangerous-direct-browser-access', 'true');
       } else {
         h.set('Authorization', 'Bearer ' + cfg.api_key);
       }
-      return fetch(new Request(e.request, { headers: h }));
+      return fetch(new Request(targetUrl, { method: e.request.method, headers: h, body: (e.request.method === 'GET' || e.request.method === 'HEAD') ? undefined : await e.request.clone().arrayBuffer() }));
     })());
   }
   // Intercept Tavily calls
@@ -2479,7 +2607,7 @@ async function initServiceWorker(keys) {
       w.addEventListener('statechange', () => { if (w.state === 'activated') resolve(w); });
       setTimeout(() => reject(new Error('SW activation timeout')), 5000);
     });
-    sw.postMessage({ type: 'SET_CONFIG', api_key: keys.api_key, tavily_api_key: keys.tavily_api_key, provider: PROVIDER });
+    sw.postMessage({ type: 'SET_CONFIG', api_key: keys.api_key, tavily_api_key: keys.tavily_api_key, provider: PROVIDER, api_endpoint: keys.api_endpoint });
     return true;
   } catch (e) {
     console.warn('Service Worker registration failed, using direct fetch fallback:', e);
@@ -2490,7 +2618,7 @@ async function initServiceWorker(keys) {
 // ── LLM URL + auth helpers ──────────────────────────────────────
 function getLLMUrl() {
   const ep = (_keys?.api_endpoint || CFG.api_endpoint || '').replace(/\/+$/, '');
-  if (PROVIDER === 'anthropic') {
+  if (PROVIDER === 'anthropic_compat') {
     return ep.includes('/messages') ? ep : ep + '/v1/messages';
   }
   if (ep.includes('/chat/completions')) return ep;
@@ -2501,7 +2629,7 @@ function getLLMUrl() {
 function getAuthHeaders() {
   const h = { 'Content-Type': 'application/json' };
   if (!_swReady && _keys) {
-    if (PROVIDER === 'anthropic') {
+    if (PROVIDER === 'anthropic_compat') {
       h['x-api-key'] = _keys.api_key;
       h['anthropic-version'] = '2023-06-01';
       h['anthropic-dangerous-direct-browser-access'] = 'true';
@@ -2521,8 +2649,7 @@ async function fetchModelList() {
     if (!resp.ok) return [];
     const data = await resp.json();
     let models = (data.data || []).map(m => m.id);
-    if (PROVIDER === 'openai') models = models.filter(m => /gpt|o1|o3|o4|chatgpt/i.test(m));
-    else if (PROVIDER === 'deepseek') models = models.filter(m => /deepseek/i.test(m));
+    if (PROVIDER === 'openai_compat') models = models.filter(m => /gpt|o1|o3|o4|chatgpt|deepseek/i.test(m));
     return models.sort();
   } catch { return []; }
 }
@@ -5581,12 +5708,11 @@ async function initAllMcpServers() {
 
 
 const PROVIDER_DEFAULT_ENDPOINTS = {
-  anthropic: 'https://api.anthropic.com',
-  openai: 'https://api.openai.com',
-  deepseek: 'https://api.deepseek.com'
+  anthropic_compat: 'https://api.anthropic.com',
+  openai_compat: 'https://api.openai.com'
 };
 
-function onProviderChange() {
+function onProviderTypeChange() {
   const provider = document.getElementById('setProvider').value;
   const epEl = document.getElementById('setEndpoint');
   const currentEp = epEl.value.trim();
@@ -5596,16 +5722,95 @@ function onProviderChange() {
   }
 }
 
-function openSettingsModal() {
-  const s = loadSettings();
-  document.getElementById('setProvider').value = s.api_provider || PROVIDER;
-  document.getElementById('setEndpoint').value = s.api_endpoint || (_keys && _keys.api_endpoint) || PROVIDER_DEFAULT_ENDPOINTS[s.api_provider || PROVIDER] || '';
-  document.getElementById('setApiKey').value = s.api_key || (_keys && _keys.api_key) || '';
-  const models = s.api_models || (_keys && _keys.api_models) || [];
-  document.getElementById('setModels').value = Array.isArray(models) ? models.join('\n') : '';
-  document.getElementById('setDefaultModel').value = s.api_model || API_MODEL || '';
-  const ctxs = s.model_contexts || MODEL_CONTEXTS || {};
+
+
+// ── Provider Profiles UI helpers ───────────────────────────────
+function renderProviderSelectInTopBar() {
+  try { populateProviderSelect(); } catch {}
+}
+
+function renderProviderProfilesInSettings() {
+  const sel = document.getElementById('setProviderProfile');
+  if (!sel) return;
+  const providers = getProvidersMap();
+  const ids = Object.keys(providers);
+  if (!ids.length) {
+    sel.innerHTML = '<option value="">(none)</option>';
+    return;
+  }
+  const activeId = (ACTIVE_PROVIDER && ACTIVE_PROVIDER.id) ? ACTIVE_PROVIDER.id : (getActiveProviderId() || ids[0]);
+  sel.innerHTML = ids.map(id => `<option value="${esc(id)}"${id === activeId ? ' selected' : ''}>${esc(providers[id].name || id)}</option>`).join('');
+}
+
+function _applyProviderProfileToSettingsModal(p) {
+  document.getElementById('setProviderName').value = p.name || '';
+  document.getElementById('setProvider').value = p.type || 'openai_compat';
+  document.getElementById('setEndpoint').value = (p.endpoint || '').replace(/\/+$/, '');
+  document.getElementById('setApiKey').value = p.apiKey || '';
+  const models = Array.isArray(p.models) ? p.models : [];
+  document.getElementById('setModels').value = models.join('\n');
+  document.getElementById('setDefaultModel').value = p.defaultModel || '';
+  const ctxs = p.model_contexts || {};
   document.getElementById('setModelContexts').value = Object.entries(ctxs).map(([k, v]) => `${k}=${v}`).join('\n');
+}
+
+function onProviderProfileSelect() {
+  const id = document.getElementById('setProviderProfile').value;
+  const providers = getProvidersMap();
+  if (!id || !providers[id]) return;
+  _applyProviderProfileToSettingsModal(providers[id]);
+}
+
+function newProviderProfile() {
+  const name = prompt('Provider name:', 'My Provider');
+  if (!name) return;
+  const id = _genProviderId();
+  const providers = getProvidersMap();
+  providers[id] = {
+    id,
+    name,
+    type: 'openai_compat',
+    endpoint: 'https://api.openai.com',
+    apiKey: '',
+    models: [],
+    defaultModel: '',
+    model_contexts: {}
+  };
+  _saveProviders({ providers });
+  setActiveProviderId(id);
+  ACTIVE_PROVIDER = providers[id];
+  renderProviderProfilesInSettings();
+  document.getElementById('setProviderProfile').value = id;
+  _applyProviderProfileToSettingsModal(ACTIVE_PROVIDER);
+  renderProviderSelectInTopBar();
+}
+
+function deleteCurrentProviderProfile() {
+  const id = document.getElementById('setProviderProfile').value;
+  const providers = getProvidersMap();
+  if (!id || !providers[id]) return;
+  if (!confirm('Delete provider "' + (providers[id].name || id) + '"?')) return;
+  delete providers[id];
+  _saveProviders({ providers });
+  const ids = Object.keys(providers);
+  const next = ids[0] || '';
+  setActiveProviderId(next);
+  ACTIVE_PROVIDER = next ? providers[next] : null;
+  renderProviderProfilesInSettings();
+  if (ACTIVE_PROVIDER) _applyProviderProfileToSettingsModal(ACTIVE_PROVIDER);
+  renderProviderSelectInTopBar();
+}
+
+function openSettingsModal() {
+  // Load active provider profile into the settings modal
+  const p = getActiveProviderProfile();
+  renderProviderProfilesInSettings();
+  if (p) {
+    document.getElementById('setProviderProfile').value = p.id;
+    _applyProviderProfileToSettingsModal(p);
+  }
+  const s = loadSettings();
+  // Non-provider settings (tavily/memory/s3/etc.) remain in SETTINGS_KEY storage
   document.getElementById('setTavilyKey').value = s.tavily_api_key || (_keys && _keys.tavily_api_key) || '';
   document.getElementById('setStatus').textContent = '';
   const mem = { ...MEM_DEFAULTS, ...(s.memory || {}) };
@@ -5671,7 +5876,7 @@ async function clearAllAppData() {
 
 async function fetchModelsIntoSettings() {
   const status = document.getElementById('setStatus');
-  const provider = document.getElementById('setProvider').value.trim() || 'anthropic';
+  const provider = document.getElementById('setProvider').value.trim() || 'anthropic_compat';
   const endpoint = document.getElementById('setEndpoint').value.trim().replace(/\/+$/, '');
   const apiKey = document.getElementById('setApiKey').value.trim();
   if (!apiKey) { status.textContent = 'API key required to fetch models'; return; }
@@ -5680,7 +5885,7 @@ async function fetchModelsIntoSettings() {
   try {
     const url = endpoint + '/v1/models';
     const headers = {};
-    if (provider === 'anthropic') {
+    if (provider === 'anthropic_compat') {
       headers['x-api-key'] = apiKey;
       headers['anthropic-version'] = '2023-06-01';
       headers['anthropic-dangerous-direct-browser-access'] = 'true';
@@ -5734,12 +5939,24 @@ function parseModelContexts(raw) {
 }
 
 async function saveSettings() {
-  const provider = document.getElementById('setProvider').value.trim() || 'anthropic';
+  // Save provider profile
+  const profId = document.getElementById('setProviderProfile').value || _genProviderId();
+  const name = document.getElementById('setProviderName').value.trim() || ('Provider ' + profId.slice(-4));
+  const type = document.getElementById('setProvider').value.trim() || 'openai_compat';
   const endpoint = document.getElementById('setEndpoint').value.trim().replace(/\/+$/, '');
   const apiKey = document.getElementById('setApiKey').value.trim();
   const models = document.getElementById('setModels').value.split(/[\n,]/).map(m => m.trim()).filter(Boolean);
   const defaultModel = document.getElementById('setDefaultModel').value.trim();
-  const modelContexts = parseModelContexts(document.getElementById('setModelContexts').value);
+  const model_contexts = parseModelContexts(document.getElementById('setModelContexts').value);
+
+  const providers = getProvidersMap();
+  providers[profId] = { id: profId, name, type, endpoint, apiKey, models, defaultModel: defaultModel || models[0] || '', model_contexts };
+  _saveProviders({ providers });
+  setActiveProviderId(profId);
+  ACTIVE_PROVIDER = providers[profId];
+  PROVIDER = ACTIVE_PROVIDER.type;
+
+  // Save non-provider settings
   const tavilyKey = document.getElementById('setTavilyKey').value.trim();
   const memEnabled = document.getElementById('setMemEnabled').checked;
   const memAutoExtract = document.getElementById('setMemAutoExtract').checked;
@@ -5747,40 +5964,39 @@ async function saveSettings() {
   const memMaxRecall = Number.isFinite(memMaxRecallRaw) && memMaxRecallRaw >= 0 ? Math.min(40, memMaxRecallRaw) : MEM_DEFAULTS.maxRecall;
   const prevMem = loadSettings()?.memory || {};
   const settings = {
-    api_provider: provider,
-    api_endpoint: endpoint,
-    api_key: apiKey,
-    api_models: models,
-    api_model: defaultModel || models[0] || '',
-    model_contexts: modelContexts,
     tavily_api_key: tavilyKey,
     memory: { enabled: memEnabled, autoExtract: memAutoExtract, maxRecall: memMaxRecall, extractionModel: prevMem.extractionModel || '' }
   };
   saveSettingsToStorage(settings);
+
   if (memEnabled && !prevMem.enabled) { openMemDB().catch(e => console.warn('Memory DB open failed', e)); memLoadCache().catch(() => {}); }
   renderMemoryButton();
   rebuildToolDefs();
-  PROVIDER = provider;
-  document.getElementById('providerLabel').textContent = PROVIDER;
+
+  // Update runtime keys
   _keys = Object.assign(_keys || {}, {
     api_key: apiKey,
     tavily_api_key: tavilyKey,
     api_endpoint: endpoint,
     api_models: models,
-    model_contexts: modelContexts
+    api_model: ACTIVE_PROVIDER.defaultModel || '',
+    model_contexts
   });
   CFG.api_endpoint = endpoint;
-  // Update MODEL_CONTEXTS in place (preserve reference)
   Object.keys(MODEL_CONTEXTS).forEach(k => delete MODEL_CONTEXTS[k]);
-  Object.assign(MODEL_CONTEXTS, modelContexts);
-  if (models.length) {
-    const desired = defaultModel && models.includes(defaultModel) ? defaultModel : (models.includes(API_MODEL) ? API_MODEL : models[0]);
-    API_MODEL = desired;
-    localStorage.setItem('ba_selected_model', API_MODEL);
-    populateModelDropdown(models);
-  }
+  Object.assign(MODEL_CONTEXTS, model_contexts);
+
+  // Choose active model
+  const desired = (defaultModel && models.includes(defaultModel)) ? defaultModel : (models.includes(API_MODEL) ? API_MODEL : (models[0] || API_MODEL));
+  API_MODEL = desired;
+  localStorage.setItem('ba_selected_model', API_MODEL);
+
+  // Refresh top bar selects
+  populateProviderSelect();
+  populateModelSelectFromActiveProvider();
   applyModelContextLimit();
   updateWsStatus();
+
   if (apiKey) {
     try { _swReady = await initServiceWorker(_keys); } catch (e) { console.warn(e); }
   }
@@ -7301,7 +7517,7 @@ async function memExtractAfterTurn({ userText, assistantContent, loopCount: lc, 
     const model = cfg.extractionModel || API_MODEL;
     let body;
     let anthropicPrefilled = false;
-    if (PROVIDER === 'anthropic') {
+    if (PROVIDER === 'anthropic_compat') {
       // Prefill "{" so Anthropic continues a JSON object instead of prose.
       body = {
         model,
@@ -7326,7 +7542,7 @@ async function memExtractAfterTurn({ userText, assistantContent, loopCount: lc, 
     if (!resp.ok) return;
     const data = await resp.json();
     let raw = '';
-    if (PROVIDER === 'anthropic') raw = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+    if (PROVIDER === 'anthropic_compat') raw = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
     else raw = data.choices?.[0]?.message?.content || '';
     if (!raw) return;
     // Reattach the prefilled "{" and try strict parse first; fall back to
@@ -9002,7 +9218,7 @@ async function compactMemory() {
 
   const systemPrompt = document.getElementById('contextEditor').value;
   let summaryBody;
-  if (PROVIDER === 'anthropic') {
+  if (PROVIDER === 'anthropic_compat') {
     summaryBody = { model: API_MODEL, max_tokens: ANTHROPIC_SUMMARY_MAX_TOKENS, system: 'You are a conversation summarizer. Produce a concise summary of the conversation below, preserving key decisions, code changes, file operations, and important context. Output ONLY the summary, no preamble.', messages: [{ role: 'user', content: `Summarize this conversation:\n\n${summaryMessages}` }] };
   } else {
     summaryBody = { model: API_MODEL, messages: [{ role: 'system', content: 'You are a conversation summarizer. Produce a concise summary preserving key decisions, code changes, file operations, and important context. Output ONLY the summary.' }, { role: 'user', content: `Summarize this conversation:\n\n${summaryMessages}` }] };
@@ -9015,7 +9231,7 @@ async function compactMemory() {
     if (resp.ok) {
       const data = await resp.json();
       totalTokens += extractUsageTotal(data.usage);
-      if (PROVIDER === 'anthropic') summary = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+      if (PROVIDER === 'anthropic_compat') summary = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
       else summary = data.choices?.[0]?.message?.content || '';
     }
   } catch (e) { console.warn('LLM compact failed:', e); }
@@ -9107,7 +9323,7 @@ async function buildRequestBody(messages = buildConversationFromEntries(), headI
   const memPrompt = await memRecallForPrompt(messages);
   const systemPrompt = document.getElementById('contextEditor').value + getActiveSkillMetadataPrompts() + getTriggeredSkillPrompts(headId) + getBeijingTimeStr() + planPrompt + memPrompt;
   rebuildToolDefs(headId);
-  if (PROVIDER === 'anthropic') {
+  if (PROVIDER === 'anthropic_compat') {
     const body = {
       model: API_MODEL,
       max_tokens: ANTHROPIC_MAX_TOKENS,
@@ -9412,7 +9628,7 @@ async function _runAgentLoop(userText, options = {}) {
           scrollBottom();
         }, 80);
       };
-      const result = PROVIDER === 'anthropic'
+      const result = PROVIDER === 'anthropic_compat'
         ? await parseAnthropicStream(reader, onText, onReasoning, onToolStart, onToolDelta)
         : await parseOpenAIStream(reader, onText, onReasoning, onToolStart, onToolDelta);
       totalTokens += result.usage_total || 0;
@@ -9465,7 +9681,7 @@ async function _runAgentLoop(userText, options = {}) {
           if (preCtx._blocked) {
             const blocked = `Error: blocked by hook [${preCtx._blocked.by}]: ${preCtx._blocked.reason}`;
             appendToolCard(msgEl, tu, blocked, true, liveEntry?.el || null);
-            trs.push(PROVIDER === 'anthropic' ? { type: 'tool_result', tool_use_id: tu.id, content: blocked, is_error: true } : { type: 'tool_result', tool_use_id: tu.id, content: blocked });
+            trs.push(PROVIDER === 'anthropic_compat' ? { type: 'tool_result', tool_use_id: tu.id, content: blocked, is_error: true } : { type: 'tool_result', tool_use_id: tu.id, content: blocked });
             continue;
           }
           if (preCtx.input && typeof preCtx.input === 'object') effectiveInput = preCtx.input;
@@ -9480,7 +9696,7 @@ async function _runAgentLoop(userText, options = {}) {
             if (Object.prototype.hasOwnProperty.call(postCtx, 'output') && postCtx.output !== out) { out = postCtx.output; isErr = typeof out === 'string' && out.startsWith('Error:'); }
           }
           appendToolCard(msgEl, tu, out, isErr, liveEntry?.el || null);
-          trs.push(PROVIDER === 'anthropic' ? { type: 'tool_result', tool_use_id: tu.id, content: out, is_error: isErr || undefined } : { type: 'tool_result', tool_use_id: tu.id, content: out });
+          trs.push(PROVIDER === 'anthropic_compat' ? { type: 'tool_result', tool_use_id: tu.id, content: out, is_error: isErr || undefined } : { type: 'tool_result', tool_use_id: tu.id, content: out });
         }
         for (const el of _toolEls) {
           if (el.isConnected && !el.querySelector('.tool-input')) el.remove();
@@ -10386,20 +10602,24 @@ marked.setOptions({ gfm: true, breaks: true });
   // or unreachable server.
   initAllMcpServers().catch(e => console.warn('MCP auto-connect failed:', e));
 
-  // Load API keys from localStorage settings (instead of /config endpoint)
+  // Load API keys from active provider profile + local settings
   try {
+    const p = getActiveProviderProfile();
+    if (p) { ACTIVE_PROVIDER = p; setActiveProviderId(p.id); PROVIDER = p.type || 'openai_compat'; }
     _keys = {
-      api_key: _userSettings.api_key || CFG.api_key || '',
+      api_key: (ACTIVE_PROVIDER && ACTIVE_PROVIDER.apiKey) ? ACTIVE_PROVIDER.apiKey : (_userSettings.api_key || CFG.api_key || ''),
       tavily_api_key: _userSettings.tavily_api_key || CFG.tavily_api_key || '',
-      api_endpoint: _userSettings.api_endpoint || CFG.api_endpoint || (PROVIDER === 'anthropic' ? 'https://api.anthropic.com' : 'https://api.openai.com'),
+      api_endpoint: (ACTIVE_PROVIDER && ACTIVE_PROVIDER.endpoint) ? ACTIVE_PROVIDER.endpoint : (_userSettings.api_endpoint || CFG.api_endpoint || (PROVIDER === 'anthropic_compat' ? 'https://api.anthropic.com' : 'https://api.openai.com')),
       api_model: API_MODEL,
-      api_models: _userSettings.api_models || CFG.api_models || [],
-      model_contexts: _userSettings.model_contexts || CFG.model_contexts || {}
+      api_models: (ACTIVE_PROVIDER && Array.isArray(ACTIVE_PROVIDER.models)) ? ACTIVE_PROVIDER.models : (_userSettings.api_models || CFG.api_models || []),
+      model_contexts: (ACTIVE_PROVIDER && ACTIVE_PROVIDER.model_contexts) ? ACTIVE_PROVIDER.model_contexts : (_userSettings.model_contexts || CFG.model_contexts || {})
     };
     CFG.api_endpoint = _keys.api_endpoint;
     if (_keys.model_contexts && typeof _keys.model_contexts === 'object') Object.assign(MODEL_CONTEXTS, _keys.model_contexts);
     applyModelContextLimit();
     updateWsStatus();
+    populateProviderSelect();
+    populateModelSelectFromActiveProvider();
     if (!_keys.api_key) {
       appendSystemMsg('No LLM API key configured. Click Settings in the top bar to add one.');
     } else {
@@ -10407,7 +10627,15 @@ marked.setOptions({ gfm: true, breaks: true });
     }
     let models = _keys.api_models || [];
     if (!models.length && _keys.api_key) models = await fetchModelList();
-    if (models.length) populateModelDropdown(models);
+    // Persist fetched models into active provider profile for convenience
+    try {
+      if (ACTIVE_PROVIDER && models.length) {
+        const providers = getProvidersMap();
+        const cur = providers[ACTIVE_PROVIDER.id];
+        if (cur) { cur.models = models; providers[ACTIVE_PROVIDER.id] = cur; _saveProviders({ providers }); ACTIVE_PROVIDER = cur; }
+      }
+    } catch {}
+    if (models.length) { populateModelSelectFromActiveProvider(); }
   } catch (e) {
     console.error('Init error:', e);
     appendSystemMsg('Init failed: ' + e.message);
