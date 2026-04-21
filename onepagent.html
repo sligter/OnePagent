@@ -1143,7 +1143,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <span class="status-text" id="statusText" data-i18n="status.ready">Ready</span>
     <div class="top-right">
       <span class="provider-badge" id="providerBadge"><select id="providerSelect" class="provider-select" title="Provider"><option value="">provider...</option></select> / <select id="modelSelect" class="model-select"><option value="">model...</option></select></span>
-      <span class="think-badge" id="thinkBadge" title="Thinking level" data-i18n-title="think.title"><select id="thinkSelect" class="think-select" onchange="setThinkingLevel(this.value)"><option value="off" data-i18n="think.off">Off</option><option value="minimal" data-i18n="think.minimal">Minimal</option><option value="low" data-i18n="think.low">Low</option><option value="medium" data-i18n="think.medium">Medium</option><option value="high" data-i18n="think.high">High</option><option value="xhigh" data-i18n="think.xhigh">XHigh</option></select></span>
+      <span class="think-badge" id="thinkBadge" title="Thinking level" data-i18n-title="think.title"><select id="thinkSelect" class="think-select" onchange="setThinkingLevel(this.value)"><option value="auto" data-i18n="think.auto">Auto</option><option value="off" data-i18n="think.off">Off</option><option value="minimal" data-i18n="think.minimal">Minimal</option><option value="low" data-i18n="think.low">Low</option><option value="medium" data-i18n="think.medium">Medium</option><option value="high" data-i18n="think.high">High</option><option value="xhigh" data-i18n="think.xhigh">XHigh</option></select></span>
       <span class="loop-badge" id="loopBadge">Loop: 0</span>
       <span class="loop-badge" id="tokenBadge">Tokens: 0</span>
       <button class="top-btn" onclick="newConversation()"><span data-i18n="btn.new">+ New</span></button>
@@ -1802,6 +1802,7 @@ const I18N = {
     'code.previewTitle': 'Preview HTML in a sandboxed frame',
     // Thinking level
     'think.title': 'Reasoning / thinking level',
+    'think.auto': 'Think: Auto',
     'think.off': 'Think: Off',
     'think.minimal': 'Think: Minimal',
     'think.low': 'Think: Low',
@@ -2057,6 +2058,7 @@ const I18N = {
     'code.previewTitle': '在沙盒中预览 HTML',
     // Thinking level
     'think.title': '思考 / 推理程度',
+    'think.auto': '思考：自动',
     'think.off': '思考：关',
     'think.minimal': '思考：极简',
     'think.low': '思考：低',
@@ -2296,12 +2298,13 @@ function updateLangButton() {
 // THINKING / REASONING LEVEL — maps to provider-specific API params
 // ═══════════════════════════════════════════════════════════════════
 const THINK_KEY = 'ba_think_level';
-// OpenAI reasoning.effort tiers: minimal (GPT-5), low, medium, high, xhigh (Codex).
-// 'off' is UI-only — it skips sending the parameter so the model uses its default.
-const THINK_LEVELS = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh'];
+// Thinking tiers.
+// - 'auto' means: do not send any thinking/reasoning parameters (provider default).
+// - 'off' is a UI label that may still be treated as a concrete level by some providers; keep it separate.
+const THINK_LEVELS = ['auto', 'off', 'minimal', 'low', 'medium', 'high', 'xhigh'];
 let THINK_LEVEL = (() => {
   try { const v = localStorage.getItem(THINK_KEY); if (THINK_LEVELS.includes(v)) return v; } catch {}
-  return 'off';
+  return 'auto';
 })();
 // Approximate token budgets for Anthropic extended thinking.
 const ANTHROPIC_THINK_BUDGET = { minimal: 1024, low: 2048, medium: 8000, high: 16000, xhigh: 32000 };
@@ -2310,7 +2313,7 @@ function setThinkingLevel(level) {
   THINK_LEVEL = level;
   try { localStorage.setItem(THINK_KEY, level); } catch {}
   const badge = document.getElementById('thinkBadge');
-  if (badge) badge.classList.toggle('on', level !== 'off');
+  if (badge) badge.classList.toggle('on', level !== 'auto');
   const sel = document.getElementById('thinkSelect');
   if (sel && sel.value !== level) sel.value = level;
 }
@@ -2318,10 +2321,11 @@ function initThinkingControl() {
   const sel = document.getElementById('thinkSelect');
   if (sel) sel.value = THINK_LEVEL;
   const badge = document.getElementById('thinkBadge');
-  if (badge) badge.classList.toggle('on', THINK_LEVEL !== 'off');
+  if (badge) badge.classList.toggle('on', THINK_LEVEL !== 'auto');
 }
 function applyThinkingToRequestBody(body, provider) {
-  if (!body || THINK_LEVEL === 'off') return body;
+  // 'auto' => do not send any thinking/reasoning params
+  if (!body || THINK_LEVEL === 'auto') return body;
   if (provider === 'anthropic_compat') {
     const budget = ANTHROPIC_THINK_BUDGET[THINK_LEVEL] || 0;
     if (budget > 0) {
