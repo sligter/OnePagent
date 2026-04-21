@@ -9924,7 +9924,7 @@ function renderMd(el, t) {
     if (fmt === 'html') {
       _renderHtmlFrame(el, t);
       if (msgEl) { const fb = msgEl.querySelector('[data-role="fmt"]'); if (fb) { fb.style.display = ''; } }
-    } else if (typeof ptParseBlocks === 'function') {
+    } else if (typeof ptParseBlocks === 'function' && typeof ptLayout === 'function' && typeof ptRender === 'function') {
       // Pretext-based rendering: parse markdown → measure via canvas → flow DOM
       const blocks = ptParseBlocks(t);
       // Compute target layout width from the chat container, not from el.clientWidth —
@@ -9943,7 +9943,11 @@ function renderMd(el, t) {
       el.innerHTML = marked.parse(t, { breaks: true, gfm: true });
       el.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
     }
-  } catch (e) { console.warn('renderMd error:', e); el.innerHTML = esc(t); }
+  } catch (e) {
+    console.warn('renderMd error:', e);
+    // Safety fallback: render as plain text (do NOT HTML-escape; otherwise users see &quot; etc.)
+    el.textContent = t;
+  }
   el.appendChild(Object.assign(document.createElement('span'), { className: 'streaming-cursor' }));
 }
 function _renderHtmlFrame(el, html) {
