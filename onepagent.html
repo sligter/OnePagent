@@ -459,10 +459,10 @@ html[data-theme="light"] {
 html[data-theme="light"] body { background: var(--bg-root); }
 html[data-theme="light"] .status-dot { box-shadow: 0 0 6px rgba(0,200,120,0.5); }
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'Inter', sans-serif; background: var(--bg-root); color: var(--text-primary); height: 100vh; overflow: hidden; }
+body { font-family: 'Inter', sans-serif; background: var(--bg-root); color: var(--text-primary); height: 100vh; height: 100dvh; overflow: hidden; }
 
 /* ── App Grid ── */
-.app { display: grid; grid-template-columns: var(--left-w, clamp(200px, 18vw, 280px)) var(--left-handle-w, 4px) minmax(0, 1fr) var(--right-handle-w, 4px) var(--right-w, clamp(240px, 20vw, 320px)); grid-template-rows: 44px 1fr; height: 100vh; gap: 0; background: var(--border); transition: grid-template-columns 0.22s ease; }
+.app { display: grid; grid-template-columns: var(--left-w, clamp(200px, 18vw, 280px)) var(--left-handle-w, 4px) minmax(0, 1fr) var(--right-handle-w, 4px) var(--right-w, clamp(240px, 20vw, 320px)); grid-template-rows: 44px 1fr; height: 100vh; height: 100dvh; gap: 0; background: var(--border); transition: grid-template-columns 0.22s ease; }
 .resize-handle { background: var(--border); cursor: col-resize; position: relative; grid-row: 2; transition: background 0.15s, visibility 0.15s; }
 #resizeLeft { grid-column: 2; }
 #resizeRight { grid-column: 4; }
@@ -476,6 +476,9 @@ body { font-family: 'Inter', sans-serif; background: var(--bg-root); color: var(
 .logo { display: flex; align-items: center; gap: clamp(6px, 0.6vw, 8px); font-weight: 700; font-size: clamp(12px, 1.3vw, 14px); font-family: 'JetBrains Mono', monospace; flex-shrink: 0; }
 .logo-icon { width: clamp(18px, 1.9vw, 22px); height: clamp(18px, 1.9vw, 22px); flex-shrink: 0; }
 .logo-text { background: linear-gradient(135deg, var(--accent-orange), var(--accent-pink)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 0.5px; }
+.github-link { display: inline-flex; align-items: center; justify-content: center; width: clamp(26px, 2.6vw, 30px); height: clamp(26px, 2.6vw, 30px); color: var(--text-secondary); border-radius: 6px; text-decoration: none; flex-shrink: 0; transition: color 0.15s, background 0.15s, transform 0.15s; }
+.github-link:hover { color: var(--accent-orange); background: rgba(255, 107, 53, 0.1); transform: translateY(-1px); }
+.github-link svg { width: clamp(16px, 1.7vw, 18px); height: clamp(16px, 1.7vw, 18px); display: block; }
 .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); transition: all 0.3s; flex-shrink: 0; }
 .status-dot.running { background: var(--accent-orange); box-shadow: 0 0 8px var(--accent-orange); animation: pulse 1.5s infinite; }
 @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.5} }
@@ -972,6 +975,17 @@ body { font-family: 'Inter', sans-serif; background: var(--bg-root); color: var(
   .msg-user .msg-body { max-width: 100%; }
 
   .html-modal { width: 96vw !important; height: 92vh !important; }
+
+  /* Mobile: reserve space for browser bottom UI (URL bar / home indicator) so
+     the input area is never hidden behind it. */
+  .chat-input-wrap {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .chat-input-area {
+    padding-bottom: calc(clamp(6px, 0.8vw, 10px) + 4px);
+  }
+  /* Prevent over-scroll chaining which can hide the composer on some Android browsers */
+  .chat-messages { overscroll-behavior: contain; }
 }
 
 @media(max-width:480px) {
@@ -1062,6 +1076,9 @@ document.addEventListener('DOMContentLoaded', function() {
       </svg>
       <span class="logo-text">OnePagent</span>
     </div>
+    <a href="https://github.com/sligter/onepagent" target="_blank" rel="noopener noreferrer" class="github-link" title="View on GitHub" aria-label="GitHub repository">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.69-3.87-1.54-3.87-1.54-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.51-1.47.11-3.07 0 0 .97-.31 3.18 1.18a11.04 11.04 0 0 1 5.78 0c2.2-1.49 3.17-1.18 3.17-1.18.62 1.6.23 2.78.11 3.07.74.81 1.19 1.83 1.19 3.09 0 4.42-2.69 5.4-5.25 5.68.41.36.78 1.06.78 2.14 0 1.54-.01 2.79-.01 3.17 0 .31.21.68.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"/></svg>
+    </a>
     <div class="status-dot" id="statusDot"></div>
     <span class="status-text" id="statusText" data-i18n="status.ready">Ready</span>
     <div class="top-right">
