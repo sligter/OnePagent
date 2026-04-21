@@ -154,7 +154,7 @@ function ptListBlks(token, ctx) {
     var ib = ptParseToks(item.tokens, ic);
     if (!ib.length) ib = ptPlainBlks(item.text, 'body', ic);
     var mt, mcl = 'pt-marker';
-    if (item.task) mt = item.checked ? '\u2611' : '\u2610';
+    if (item.task) mt = item.checked ? iconHtml('i:check-square') : iconHtml('i:square');
     else if (token.ordered) mt = ((token.start || 1) + i) + '.';
     else mt = '\u2022';
     var mw = PT.measureNaturalWidth(PT.prepareWithSegments(mt, PT_MARKER_FONT)) + PT_MARKER_GAP;
@@ -479,6 +479,13 @@ body { font-family: 'Inter', sans-serif; background: var(--bg-root); color: var(
 .github-link { display: inline-flex; align-items: center; justify-content: center; width: clamp(26px, 2.6vw, 30px); height: clamp(26px, 2.6vw, 30px); color: var(--text-secondary); border-radius: 6px; text-decoration: none; flex-shrink: 0; transition: color 0.15s, background 0.15s, transform 0.15s; }
 .github-link:hover { color: var(--accent-orange); background: rgba(255, 107, 53, 0.1); transform: translateY(-1px); }
 .github-link svg { width: clamp(16px, 1.7vw, 18px); height: clamp(16px, 1.7vw, 18px); display: block; }
+.ui-icon{width:1em;height:1em;display:inline-block;vertical-align:-0.15em} 
+.icon{display:inline-flex;align-items:center;justify-content:center} 
+.section-title .icon .ui-icon{width:12px;height:12px} 
+.top-btn .ui-icon,.modal-tab .ui-icon,.modal-btn .ui-icon,.skill-install-btn .ui-icon{margin-right:6px} 
+.fv-header .top-btn .ui-icon{margin-right:6px} 
+.emoji-icon{display:inline-block;min-width:1em;text-align:center} 
+
 .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); transition: all 0.3s; flex-shrink: 0; }
 .status-dot.running { background: var(--accent-orange); box-shadow: 0 0 8px var(--accent-orange); animation: pulse 1.5s infinite; }
 @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.5} }
@@ -1022,7 +1029,7 @@ function updateThemeLabel(theme) {
     // Keep icon before label; icon is a leading text glyph.
     // Ensure icon character matches theme.
     var firstNode = btn.firstChild;
-    var iconChar = isLight ? '\u2600 ' : '\u263D ';
+    var iconChar = ''; // icon handled via SVG
     if (firstNode && firstNode.nodeType === 3) firstNode.nodeValue = iconChar;
   }
 }
@@ -1033,6 +1040,55 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 </head>
 <body>
+<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true" focusable="false">
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M20 17.5a4.5 4.5 0 0 0-1.5-8.76A6 6 0 0 0 6.1 10.2 3.5 3.5 0 0 0 6.5 17.5H20Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 14.5A8.5 8.5 0 0 1 9.5 3a7 7 0 1 0 11.5 11.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M19.4 15a7.8 7.8 0 0 0 .05-6l-2.1.2a6.9 6.9 0 0 0-1.1-1.1l.2-2.1a7.8 7.8 0 0 0-6-.05l-.9 1.9a6.9 6.9 0 0 0-1.6 0l-.9-1.9a7.8 7.8 0 0 0-6 .05l.2 2.1a6.9 6.9 0 0 0-1.1 1.1L2.6 9a7.8 7.8 0 0 0 .05 6l2.1-.2a6.9 6.9 0 0 0 1.1 1.1l-.2 2.1a7.8 7.8 0 0 0 6 .05l.9-1.9a6.9 6.9 0 0 0 1.6 0l.9 1.9a7.8 7.8 0 0 0 6-.05l-.2-2.1a6.9 6.9 0 0 0 1.1-1.1l2.1.2Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-alert-triangle" viewBox="0 0 24 24"><path d="M10.3 3.2 1.7 19.2A2 2 0 0 0 3.4 22h17.2a2 2 0 0 0 1.7-2.8L13.7 3.2a2 2 0 0 0-3.4 0Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 17h.01" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 3 14h7l-1 8 12-14h-7l-1-6Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M2 12h20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 2a15 15 0 0 1 0 20a15 15 0 0 1 0-20Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-store" viewBox="0 0 24 24"><path d="M4 7l1-3h14l1 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M3 7h18l-1 5H4L3 7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M5 12v9h14v-9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9 21v-6h6v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-message-circle" viewBox="0 0 24 24"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 9 9 0 0 1-4-.9L3 21l1.9-5.5a9 9 0 1 1 16.1-4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M4 11v8c0 1.7 3.6 3 8 3s8-1.3 8-3v-8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-folder-open" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 11h19l-2 10H5L3 11Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  <symbol id="i-file-text" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M14 2v6h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8 13h8M8 17h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-clipboard-list" viewBox="0 0 24 24"><path d="M9 2h6v4H9V2Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M7 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M7 11h10M7 15h10M7 19h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M7 11l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 21h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-3 3-2-2 3-3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8 6V4h8v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M6 6l1 16h10l1-16" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-minimize-2" viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-rocket" viewBox="0 0 24 24"><path d="M14 4c3 0 6 3 6 6-4.5 6-9.5 9-14 10 1-4.5 4-9.5 10-14Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 15l-2 2c-1 1-3 1-4 0 0-1 0-3 1-4l2-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M15 9h0" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></symbol>
+  <symbol id="i-brain" viewBox="0 0 24 24"><path d="M8 5a3 3 0 0 1 5-1 3 3 0 0 1 3 3v10a3 3 0 0 1-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 5a3 3 0 0 0-3 3v1a3 3 0 0 0 0 6v1a3 3 0 0 0 3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 4v16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M12 20h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  <symbol id="i-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 8l-5.5 7L8 12.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5l12 7-12 7V5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M14 4l6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8 10l6-6 6 6-2 2H6l2-2Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 14v8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-square" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-check-square" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 12l2 2 4-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-paperclip" viewBox="0 0 24 24"><path d="M21.4 11.6 12 21a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8L15 7.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-terminal" viewBox="0 0 24 24"><path d="M4 4h16v16H4V4Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 8l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 14h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-antenna" viewBox="0 0 24 24"><path d="M12 20v-8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8 16a4 4 0 0 1 8 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M5 13a7 7 0 0 1 14 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="6" r="2" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18h1a2 2 0 0 0 0-4h-1a2 2 0 0 1 0-4h5a4 4 0 0 0 0-8h-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.5 10h0" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><path d="M9.5 6.5h0" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><path d="M14.5 6.5h0" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><path d="M16.5 10h0" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></symbol>
+  <symbol id="i-braces" viewBox="0 0 24 24"><path d="M8 4c-2 0-3 1-3 3v3c0 1-1 2-2 2 1 0 2 1 2 2v3c0 2 1 3 3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 4c2 0 3 1 3 3v3c0 1 1 2 2 2-1 0-2 1-2 2v3c0 2-1 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 11h0" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><path d="M21 16l-5-5-4 4-2-2-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M14 2v6h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 19V5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M4 19h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8 17V9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 17V7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M16 17v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-sheet" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-archive" viewBox="0 0 24 24"><path d="M3 7h18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M5 7v14h14V7" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M10 11h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="18" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="19" cy="16" r="3" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-film" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 5v14M17 5v14M2 9h20M2 15h20" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19a2 2 0 0 1 2-2h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M6 17V4a2 2 0 0 1 2-2h12v18H8a2 2 0 0 0-2 2Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  <symbol id="i-file-pen" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M14 2v6h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9 15l6-6 2 2-6 6-3 1 1-3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  <symbol id="i-code" viewBox="0 0 24 24"><path d="M16 18l6-6-6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+
+</svg>
+
 
 <div id="mobileBackdrop" onclick="closeMobileDrawers()"></div>
 
@@ -1093,7 +1149,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <button class="top-btn hide-mobile top-btn-icon" id="planBtn" onclick="togglePlanMode()" title="Plan Mode: block writes, require approval before execution" data-i18n-title="btn.planTitle"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-4"/><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg><span data-i18n="btn.plan">Plan</span></button>
       <button class="top-btn hide-mobile top-btn-icon" id="memBtn" onclick="openMemoryModal()" title="Memory: facts persisted across conversations" data-i18n-title="btn.memoryTitle" style="display:none"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a4 4 0 0 0-4 4 4 4 0 0 0-4 4 4 4 0 0 0 2 3.46A4 4 0 0 0 8 22a4 4 0 0 0 4-2 4 4 0 0 0 4 2 4 4 0 0 0 2-8.54A4 4 0 0 0 20 10a4 4 0 0 0-4-4 4 4 0 0 0-4-4Z"/><path d="M12 6v16M8 10h0M16 10h0M9 14h6"/></svg><span data-i18n="btn.memory">Memory</span></button>
       <span style="position:relative;display:inline-block">
-        <button class="top-btn hide-mobile" id="syncBtn" onclick="toggleSyncMenu()" title="Cloud sync to S3-compatible bucket" data-i18n-title="btn.syncTitle">&#x2601; <span data-i18n="btn.sync">Sync</span></button>
+        <button class="top-btn hide-mobile" id="syncBtn" onclick="toggleSyncMenu()" title="Cloud sync to S3-compatible bucket" data-i18n-title="btn.syncTitle"><svg class="ui-icon" aria-hidden="true"><use href="#i-cloud"></use></svg> <span data-i18n="btn.sync">Sync</span></button>
         <div id="syncMenu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:6px;min-width:240px;z-index:150;box-shadow:0 4px 12px rgba(0,0,0,0.3)">
           <button class="top-btn" id="syncPushBtn" onclick="onSyncPushClick()" style="display:block;width:100%;text-align:left;margin-bottom:4px">&#x2B06; <span data-i18n="btn.syncPush">Push now</span></button>
           <button class="top-btn" id="syncPullBtn" onclick="onSyncPullClick()" style="display:block;width:100%;text-align:left;margin-bottom:4px">&#x2B07; <span data-i18n="btn.syncPull">Pull now</span></button>
@@ -1101,8 +1157,8 @@ document.addEventListener('DOMContentLoaded', function() {
           <div id="syncStatus" style="font-size:10px;color:var(--text-dim);padding:4px 6px;border-top:1px solid var(--border);margin-top:4px" data-i18n="sync.notConfigured">Not configured.</div>
         </div>
       </span>
-      <button class="top-btn" onclick="openSettingsModal()" title="LLM & Tavily settings" data-i18n-title="btn.settingsTitle">&#x2699; <span data-i18n="btn.settings">Settings</span></button>
-      <button class="top-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle light/dark theme" data-i18n-title="btn.themeTitle">&#x263D; <span id="themeLabel" data-i18n="btn.themeDark">Dark</span></button>
+      <button class="top-btn" onclick="openSettingsModal()" title="LLM & Tavily settings" data-i18n-title="btn.settingsTitle"><svg class="ui-icon" aria-hidden="true"><use href="#i-settings"></use></svg> <span data-i18n="btn.settings">Settings</span></button>
+      <button class="top-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle light/dark theme" data-i18n-title="btn.themeTitle"><svg class="ui-icon" aria-hidden="true"><use href="#i-moon"></use></svg> <span id="themeLabel" data-i18n="btn.themeDark">Dark</span></button>
       <button class="top-btn top-btn-icon" id="langBtn" onclick="toggleLanguage()" title="Switch language / 切换语言" data-i18n-title="btn.langTitle"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg><span data-role="lang-label">EN</span></button>
     </div>
     </div>
@@ -1113,7 +1169,7 @@ document.addEventListener('DOMContentLoaded', function() {
   <div class="left-panel">
     <!-- Conversations -->
     <div class="panel-section" data-section="conversations">
-      <div class="section-title" onclick="toggleSection(this)"><span style="display:flex;align-items:center;gap:6px"><span class="icon">&#x1F4AC;</span> <span data-i18n="section.conversations">CONVERSATIONS</span></span><span style="display:flex;gap:2px" onclick="event.stopPropagation()"><button class="skill-install-btn" style="flex:none;margin:0;padding:2px 8px" onclick="newConvFolder()" title="New folder" data-i18n-title="action.newConvFolder">&#x1F4C1;</button><button class="skill-install-btn" style="flex:none;margin:0;padding:2px 8px" onclick="newConversation()">&#x2795; <span data-i18n="action.newConv">New</span></button></span><span class="section-arrow">&#x25BC;</span></div>
+      <div class="section-title" onclick="toggleSection(this)"><span style="display:flex;align-items:center;gap:6px"><span class="icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-message-circle"></use></svg></span> <span data-i18n="section.conversations">CONVERSATIONS</span></span><span style="display:flex;gap:2px" onclick="event.stopPropagation()"><button class="skill-install-btn" style="flex:none;margin:0;padding:2px 8px" onclick="newConvFolder()" title="New folder" data-i18n-title="action.newConvFolder"><svg class="ui-icon" aria-hidden="true"><use href="#i-folder"></use></svg></button><button class="skill-install-btn" style="flex:none;margin:0;padding:2px 8px" onclick="newConversation()"><svg class="ui-icon" aria-hidden="true"><use href="#i-plus"></use></svg> <span data-i18n="action.newConv">New</span></button></span><span class="section-arrow">&#x25BC;</span></div>
       <div class="section-body">
         <div class="conv-list" id="convList" ondragover="onConvListDragOver(event)" ondragleave="onConvListDragLeave(event)" ondrop="onConvDropToRoot(event)"></div>
       </div>
@@ -1121,9 +1177,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     <!-- Context -->
     <div class="panel-section" data-section="system-prompt">
-      <div class="section-title" onclick="toggleSection(this)"><span class="icon">&#x1F4C4;</span> <span data-i18n="section.systemPrompt">SYSTEM PROMPT</span>
+      <div class="section-title" onclick="toggleSection(this)"><span class="icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-file-text"></use></svg></span> <span data-i18n="section.systemPrompt">SYSTEM PROMPT</span>
         <span class="sp-actions" onclick="event.stopPropagation()">
-          <button class="skill-install-btn" id="spEditBtn" onclick="toggleSysPromptEdit()">&#x270F; <span data-i18n="action.edit">Edit</span></button>
+          <button class="skill-install-btn" id="spEditBtn" onclick="toggleSysPromptEdit()"><svg class="ui-icon" aria-hidden="true"><use href="#i-pencil"></use></svg> <span data-i18n="action.edit">Edit</span></button>
           <button class="skill-install-btn" id="spResetBtn" onclick="resetSysPrompt()" title="Reset to default" data-i18n-title="action.resetDefault">&#x21BA;</button>
         </span>
         <span class="section-arrow">&#x25BC;</span>
@@ -1135,14 +1191,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     <!-- Skills -->
     <div class="panel-section" data-section="skills">
-      <div class="section-title" onclick="toggleSection(this)"><span class="icon">&#x26A1;</span> <span data-i18n="section.skills">SKILLS</span><span class="section-arrow">&#x25BC;</span></div>
+      <div class="section-title" onclick="toggleSection(this)"><span class="icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-bolt"></use></svg></span> <span data-i18n="section.skills">SKILLS</span><span class="section-arrow">&#x25BC;</span></div>
       <div class="section-body">
         <div class="skills-list" id="skillsList"></div>
         <div class="skill-install-bar">
-          <button class="skill-install-btn" onclick="openSkillModal('market')">&#x1F3EA; <span data-i18n="skills.market">Market</span></button>
-          <button class="skill-install-btn" onclick="openSkillModal('file')">&#x1F4C2; <span data-i18n="skills.file">.skill/.zip</span></button>
-          <button class="skill-install-btn" onclick="openSkillModal('github')">&#x1F310; <span data-i18n="skills.github">GitHub</span></button>
-          <button class="skill-install-btn" onclick="openSkillModal('create')">&#x2795; <span data-i18n="skills.create">Create</span></button>
+          <button class="skill-install-btn" onclick="openSkillModal('market')"><svg class="ui-icon" aria-hidden="true"><use href="#i-store"></use></svg> <span data-i18n="skills.market">Market</span></button>
+          <button class="skill-install-btn" onclick="openSkillModal('file')"><svg class="ui-icon" aria-hidden="true"><use href="#i-folder-open"></use></svg> <span data-i18n="skills.file">.skill/.zip</span></button>
+          <button class="skill-install-btn" onclick="openSkillModal('github')"><svg class="ui-icon" aria-hidden="true"><use href="#i-globe"></use></svg> <span data-i18n="skills.github">GitHub</span></button>
+          <button class="skill-install-btn" onclick="openSkillModal('create')"><svg class="ui-icon" aria-hidden="true"><use href="#i-plus"></use></svg> <span data-i18n="skills.create">Create</span></button>
         </div>
       </div>
     </div>
@@ -1150,12 +1206,12 @@ document.addEventListener('DOMContentLoaded', function() {
     <!-- Files -->
     <div class="panel-section" data-section="files" style="display:flex;flex-direction:column">
       <div class="section-title" onclick="toggleSection(this)">
-        <span style="display:flex;align-items:center;gap:6px"><span class="icon">&#x1F4C1;</span> <span data-i18n="section.files">FILES</span></span>
+        <span style="display:flex;align-items:center;gap:6px"><span class="icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-folder"></use></svg></span> <span data-i18n="section.files">FILES</span></span>
         <span style="display:flex;gap:2px" onclick="event.stopPropagation()">
           <button class="skill-install-btn" style="flex:none;margin:0;padding:1px 6px" onclick="feExpandAll()" title="Expand all" data-i18n-title="action.expandAll">&#x25BC;</button>
           <button class="skill-install-btn" style="flex:none;margin:0;padding:1px 6px" onclick="feCollapseAll()" title="Collapse all" data-i18n-title="action.collapseAll">&#x25B6;</button>
           <button class="skill-install-btn" style="flex:none;margin:0;padding:1px 6px" onclick="feNewFileIn('/')" title="New file" data-i18n-title="action.newFile">+</button>
-          <button class="skill-install-btn" style="flex:none;margin:0;padding:1px 6px" onclick="feNewFolderIn('/')" title="New folder" data-i18n-title="action.newFolder">&#x1F4C1;</button>
+          <button class="skill-install-btn" style="flex:none;margin:0;padding:1px 6px" onclick="feNewFolderIn('/')" title="New folder" data-i18n-title="action.newFolder"><svg class="ui-icon" aria-hidden="true"><use href="#i-folder"></use></svg></button>
         </span>
         <span class="section-arrow">&#x25BC;</span>
       </div>
@@ -1164,7 +1220,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="fe-select-bar" id="feSelectBar" style="display:none">
           <span class="fe-select-count"><span id="feSelectCount">0</span> <span data-i18n="fe.selected">selected</span></span>
           <button class="skill-install-btn" onclick="feDownloadSelectedZip()" title="Download selected as .zip" data-i18n-title="fe.downloadZipTitle">&#x2B07; <span data-i18n="fe.downloadZip">ZIP</span></button>
-          <button class="skill-install-btn" onclick="feClearSelection()" title="Clear selection" data-i18n-title="fe.clearSelection">&#x2715;</button>
+          <button class="skill-install-btn" onclick="feClearSelection()" title="Clear selection" data-i18n-title="fe.clearSelection"><svg class="ui-icon" aria-hidden="true"><use href="#i-x"></use></svg></button>
         </div>
       </div>
     </div>
@@ -1203,7 +1259,7 @@ document.addEventListener('DOMContentLoaded', function() {
   <div class="right-panel">
     <!-- Tools -->
     <div class="panel-section" data-section="tools">
-      <div class="section-title" onclick="toggleSection(this)"><span style="display:flex;align-items:center;gap:6px"><span class="icon">&#x1F527;</span> <span data-i18n="section.tools">TOOLS</span></span><button class="skill-install-btn" style="flex:none;margin:0;padding:2px 8px" onclick="event.stopPropagation();openMcpToolModal()" data-i18n="action.addMcp">+ MCP</button><span class="section-arrow">&#x25BC;</span></div>
+      <div class="section-title" onclick="toggleSection(this)"><span style="display:flex;align-items:center;gap:6px"><span class="icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-wrench"></use></svg></span> <span data-i18n="section.tools">TOOLS</span></span><button class="skill-install-btn" style="flex:none;margin:0;padding:2px 8px" onclick="event.stopPropagation();openMcpToolModal()" data-i18n="action.addMcp">+ MCP</button><span class="section-arrow">&#x25BC;</span></div>
       <div class="section-body">
         <div class="tools-grid" id="toolsGrid"></div>
       </div>
@@ -1211,7 +1267,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <!-- Web Search -->
     <div class="panel-section" data-section="web-search">
       <div class="section-title" onclick="toggleSection(this)">
-        <span style="display:flex;align-items:center;gap:6px"><span class="icon">&#x1F310;</span> <span data-i18n="section.webSearch">WEB SEARCH</span></span>
+        <span style="display:flex;align-items:center;gap:6px"><span class="icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-globe"></use></svg></span> <span data-i18n="section.webSearch">WEB SEARCH</span></span>
         <span class="ws-status" id="wsStatus" onclick="event.stopPropagation()" data-i18n="ws.noKey">no key</span>
         <span class="section-arrow">&#x25BC;</span>
       </div>
@@ -1236,21 +1292,21 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
     <!-- Todos -->
     <div class="panel-section" data-section="todos">
-      <div class="section-title" onclick="toggleSection(this)"><span style="display:flex;align-items:center;gap:6px"><span class="icon">&#x2705;</span> <span data-i18n="section.todos">TODOS</span></span><span id="todoCounts" style="flex:none;font-size:10px;color:var(--text-dim);margin-right:6px"></span><span class="section-arrow">&#x25BC;</span></div>
+      <div class="section-title" onclick="toggleSection(this)"><span style="display:flex;align-items:center;gap:6px"><span class="icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-check"></use></svg></span> <span data-i18n="section.todos">TODOS</span></span><span id="todoCounts" style="flex:none;font-size:10px;color:var(--text-dim);margin-right:6px"></span><span class="section-arrow">&#x25BC;</span></div>
       <div class="section-body">
         <div id="todosArea"></div>
       </div>
     </div>
     <!-- Hooks -->
     <div class="panel-section" data-section="hooks">
-      <div class="section-title" onclick="toggleSection(this)"><span style="display:flex;align-items:center;gap:6px"><span class="icon">&#x26A1;</span> <span data-i18n="section.hooks">HOOKS</span></span><button class="skill-install-btn" style="flex:none;margin:0;padding:2px 8px" onclick="event.stopPropagation();openHookModal()" data-i18n="action.addHook">+ Add</button><span class="section-arrow">&#x25BC;</span></div>
+      <div class="section-title" onclick="toggleSection(this)"><span style="display:flex;align-items:center;gap:6px"><span class="icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-bolt"></use></svg></span> <span data-i18n="section.hooks">HOOKS</span></span><button class="skill-install-btn" style="flex:none;margin:0;padding:2px 8px" onclick="event.stopPropagation();openHookModal()" data-i18n="action.addHook">+ Add</button><span class="section-arrow">&#x25BC;</span></div>
       <div class="section-body">
         <div id="hooksArea"></div>
       </div>
     </div>
     <!-- Memory -->
     <div class="panel-section" data-section="memory" style="flex:1">
-      <div class="section-title" onclick="toggleSection(this)"><span class="icon">&#x1F4BE;</span> <span data-i18n="section.memory">MEMORY</span><span class="section-arrow">&#x25BC;</span></div>
+      <div class="section-title" onclick="toggleSection(this)"><span class="icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-database"></use></svg></span> <span data-i18n="section.memory">MEMORY</span><span class="section-arrow">&#x25BC;</span></div>
       <div class="section-body">
         <div class="memory-stats">
           <div class="mem-stat"><div class="val" id="memMsgCount">0</div><div class="lbl" data-i18n="mem.messages">Messages</div></div>
@@ -1258,7 +1314,7 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
         <div class="memory-bar"><div class="fill" id="memoryFill" style="width:0%"></div></div>
         <div class="memory-log" id="memoryLog"></div>
-        <button class="compact-btn" onclick="compactMemory()">&#x1F5DC; <span data-i18n="mem.autoCompact">Auto-Compact Memory</span></button>
+        <button class="compact-btn" onclick="compactMemory()"><svg class="ui-icon" aria-hidden="true"><use href="#i-minimize-2"></use></svg> <span data-i18n="mem.autoCompact">Auto-Compact Memory</span></button>
       </div>
     </div>
   </div>
@@ -1281,15 +1337,15 @@ document.addEventListener('DOMContentLoaded', function() {
 <div class="modal-overlay" id="skillModal">
   <div class="modal">
     <div class="modal-header">
-      <h3>&#x26A1; <span data-i18n="skillModal.title">Install Skill</span></h3>
+      <h3><svg class="ui-icon" aria-hidden="true"><use href="#i-bolt"></use></svg> <span data-i18n="skillModal.title">Install Skill</span></h3>
       <button class="modal-close" onclick="closeSkillModal()">&times;</button>
     </div>
     <div class="modal-body">
       <div class="modal-tabs">
-        <button class="modal-tab active" onclick="switchSkillTab('market',this)">&#x1F3EA; <span data-i18n="skillModal.tab.market">Market</span></button>
-        <button class="modal-tab" onclick="switchSkillTab('file',this)">&#x1F4C2; <span data-i18n="skillModal.tab.file">File</span></button>
-        <button class="modal-tab" onclick="switchSkillTab('github',this)">&#x1F310; <span data-i18n="skillModal.tab.github">GitHub</span></button>
-        <button class="modal-tab" onclick="switchSkillTab('create',this)">&#x2795; <span data-i18n="skillModal.tab.create">Create</span></button>
+        <button class="modal-tab active" onclick="switchSkillTab('market',this)"><svg class="ui-icon" aria-hidden="true"><use href="#i-store"></use></svg> <span data-i18n="skillModal.tab.market">Market</span></button>
+        <button class="modal-tab" onclick="switchSkillTab('file',this)"><svg class="ui-icon" aria-hidden="true"><use href="#i-folder-open"></use></svg> <span data-i18n="skillModal.tab.file">File</span></button>
+        <button class="modal-tab" onclick="switchSkillTab('github',this)"><svg class="ui-icon" aria-hidden="true"><use href="#i-globe"></use></svg> <span data-i18n="skillModal.tab.github">GitHub</span></button>
+        <button class="modal-tab" onclick="switchSkillTab('create',this)"><svg class="ui-icon" aria-hidden="true"><use href="#i-plus"></use></svg> <span data-i18n="skillModal.tab.create">Create</span></button>
       </div>
 
       <!-- Marketplace Tab -->
@@ -1321,15 +1377,15 @@ document.addEventListener('DOMContentLoaded', function() {
         <input type="text" id="skillGithubBranch" placeholder="main" value="main">
         <label data-i18n="skillModal.githubPath">Skill directory path (optional)</label>
         <input type="text" id="skillGithubPath" placeholder="e.g. .skills/calculator (auto-detects SKILL.md)">
-        <button class="modal-btn primary" onclick="importFromGithub()" style="width:100%">&#x1F4E5; <span data-i18n="skillModal.githubFetch">Fetch &amp; Install</span></button>
+        <button class="modal-btn primary" onclick="importFromGithub()" style="width:100%"><svg class="ui-icon" aria-hidden="true"><use href="#i-download"></use></svg> <span data-i18n="skillModal.githubFetch">Fetch &amp; Install</span></button>
       </div>
 
       <!-- Create Tab -->
       <div class="tab-content" id="tab-create">
         <label data-i18n="skillModal.createName">Skill Name</label>
         <input type="text" id="skillCreateName" placeholder="my-custom-skill">
-        <label data-i18n="skillModal.createIcon">Icon (emoji)</label>
-        <input type="text" id="skillCreateIcon" placeholder="&#x1F680;" value="&#x1F680;" style="width:60px">
+        <label data-i18n="skillModal.createIcon">Icon (icon)</label>
+        <input type="text" id="skillCreateIcon" placeholder="i:bolt" value="i:bolt" style="width:60px">
         <label data-i18n="skillModal.createDesc">Description</label>
         <input type="text" id="skillCreateDesc" placeholder="What this skill does" data-i18n-placeholder="skillModal.createDescPh">
         <label data-i18n="skillModal.createTrigger">Trigger Pattern (regex, optional)</label>
@@ -1338,7 +1394,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <textarea id="skillCreatePrompt" placeholder="Markdown instructions loaded when skill triggers. Keep concise — context window is shared." data-i18n-placeholder="skillModal.createBodyPh"></textarea>
         <label data-i18n="skillModal.createTool">Custom Tool (JSON, optional)</label>
         <textarea id="skillCreateTool" placeholder='[{"name":"my_tool","description":"...","parameters":{...},"handler":"return ..."}]' style="min-height:60px"></textarea>
-        <button class="modal-btn primary" onclick="createSkill()" style="width:100%;margin-top:4px">&#x2705; <span data-i18n="skillModal.createBtn">Create Skill</span></button>
+        <button class="modal-btn primary" onclick="createSkill()" style="width:100%;margin-top:4px"><svg class="ui-icon" aria-hidden="true"><use href="#i-check"></use></svg> <span data-i18n="skillModal.createBtn">Create Skill</span></button>
       </div>
     </div>
   </div>
@@ -1348,7 +1404,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <div class="modal-overlay" id="mcpToolModal">
   <div class="modal">
     <div class="modal-header">
-      <h3>&#x1F527; <span data-i18n="mcpModal.title">Add Custom MCP Tool</span></h3>
+      <h3><svg class="ui-icon" aria-hidden="true"><use href="#i-wrench"></use></svg> <span data-i18n="mcpModal.title">Add Custom MCP Tool</span></h3>
       <button class="modal-close" onclick="closeMcpToolModal()">&times;</button>
     </div>
     <div class="modal-body">
@@ -1381,7 +1437,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
           <label data-i18n="mcpModal.srvToken">Bearer token (optional)</label>
           <input type="text" id="mcpSrvToken" placeholder="sk-..." autocomplete="off">
-          <button class="modal-btn primary" onclick="onAddMcpServerManualClick()" style="margin-top:6px;width:100%">&#x2795; <span data-i18n="mcpModal.addServer">Add Server</span></button>
+          <button class="modal-btn primary" onclick="onAddMcpServerManualClick()" style="margin-top:6px;width:100%"><svg class="ui-icon" aria-hidden="true"><use href="#i-plus"></use></svg> <span data-i18n="mcpModal.addServer">Add Server</span></button>
         </div>
         <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px">
           <label data-i18n="mcpModal.serversInstalled">Connected Servers</label>
@@ -1400,7 +1456,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <label data-i18n="mcpModal.handler">Handler JS (if no server URL, executed in browser)</label>
         <textarea id="mcpToolHandler" placeholder="// input is the tool parameters object&#10;return 'Result: ' + input.query;" style="min-height:60px"></textarea>
         <div style="display:flex;gap:8px;margin-top:8px">
-          <button class="modal-btn primary" onclick="addMcpTool()" style="flex:1">&#x2705; <span data-i18n="mcpModal.addTool">Add Tool</span></button>
+          <button class="modal-btn primary" onclick="addMcpTool()" style="flex:1"><svg class="ui-icon" aria-hidden="true"><use href="#i-check"></use></svg> <span data-i18n="mcpModal.addTool">Add Tool</span></button>
           <button class="modal-btn secondary" onclick="closeMcpToolModal()" style="flex:1" data-i18n="modal.cancel">Cancel</button>
         </div>
         <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px">
@@ -1416,7 +1472,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <div class="modal-overlay" id="settingsModal">
   <div class="modal" style="width:clamp(320px,94vw,680px)">
     <div class="modal-header">
-      <h3>&#x2699; <span data-i18n="settings.title">Settings</span></h3>
+      <h3><svg class="ui-icon" aria-hidden="true"><use href="#i-settings"></use></svg> <span data-i18n="settings.title">Settings</span></h3>
       <button class="modal-close" onclick="closeSettingsModal()">&times;</button>
     </div>
     <div class="modal-body">
@@ -1437,7 +1493,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <select id="setAvailableModels" multiple size="6" style="width:100%;padding:6px;background:var(--bg-root);border:1px solid var(--border);border-radius:5px;color:var(--text-primary);font-family:'JetBrains Mono',monospace;font-size:11px;margin-bottom:6px"></select>
       <div style="display:flex;gap:6px;margin-bottom:12px">
         <input type="text" id="setCustomModel" placeholder="custom-model-id" data-i18n-placeholder="settings.customModelPh" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomModelToList();}" style="flex:1;margin-bottom:0">
-        <button type="button" class="modal-btn secondary" onclick="addCustomModelToList()" style="padding:4px 10px;font-size:10px">&#x2795; <span data-i18n="settings.addModel">Add</span></button>
+        <button type="button" class="modal-btn secondary" onclick="addCustomModelToList()" style="padding:4px 10px;font-size:10px"><svg class="ui-icon" aria-hidden="true"><use href="#i-plus"></use></svg> <span data-i18n="settings.addModel">Add</span></button>
         <button type="button" class="modal-btn secondary" onclick="addSelectedModelsToList()" style="padding:4px 10px;font-size:10px">&#x21A1; <span data-i18n="settings.addSelected">Add Selected</span></button>
       </div>
       <label><span data-i18n="settings.selectedModels">Selected Models</span> <span style="text-transform:none;color:var(--text-dim)" data-i18n="settings.selectedModelsHint">(one per line; edit freely)</span></label>
@@ -1451,7 +1507,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <div id="setStatus" style="font-size:10px;color:var(--text-dim);min-height:14px;margin-bottom:6px"></div>
 
       <div style="border-top:1px solid var(--border);margin:14px 0 10px"></div>
-      <label style="font-weight:600;color:var(--text-primary);text-transform:none;letter-spacing:0;font-size:12px">&#x1F9E0; <span data-i18n="settings.memHeader">Memory</span> <span style="text-transform:none;color:var(--text-dim);font-weight:400" data-i18n="settings.memHeaderHint">(persists facts across conversations)</span></label>
+      <label style="font-weight:600;color:var(--text-primary);text-transform:none;letter-spacing:0;font-size:12px"><svg class="ui-icon" aria-hidden="true"><use href="#i-brain"></use></svg> <span data-i18n="settings.memHeader">Memory</span> <span style="text-transform:none;color:var(--text-dim);font-weight:400" data-i18n="settings.memHeaderHint">(persists facts across conversations)</span></label>
       <label style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:11px;color:var(--text-secondary);margin-bottom:6px"><input type="checkbox" id="setMemEnabled" style="width:auto;margin:0"> <span data-i18n="settings.memEnable">Enable memory (default off)</span></label>
       <label style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:11px;color:var(--text-secondary);margin-bottom:6px"><input type="checkbox" id="setMemAutoExtract" style="width:auto;margin:0" checked> <span data-i18n="settings.memAutoExtract">Auto-extract facts after each assistant turn (adds one lightweight LLM call)</span></label>
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
@@ -1461,7 +1517,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <div style="font-size:10px;color:var(--text-dim);line-height:1.5;margin-bottom:6px" data-i18n="settings.memDesc">Memory = Information + Time Label + Searchable Relationships. Records live in IndexedDB and sync via the cloud-sync layer below when configured.</div>
 
       <div style="border-top:1px solid var(--border);margin:14px 0 10px"></div>
-      <label style="font-weight:600;color:var(--text-primary);text-transform:none;letter-spacing:0;font-size:12px">&#x2601; <span data-i18n="settings.cloudHeader">Cloud Sync</span> <span style="text-transform:none;color:var(--text-dim);font-weight:400" data-i18n="settings.cloudHeaderHint">(S3-compatible \u2014 AWS, R2, MinIO, B2)</span></label>
+      <label style="font-weight:600;color:var(--text-primary);text-transform:none;letter-spacing:0;font-size:12px"><svg class="ui-icon" aria-hidden="true"><use href="#i-cloud"></use></svg> <span data-i18n="settings.cloudHeader">Cloud Sync</span> <span style="text-transform:none;color:var(--text-dim);font-weight:400" data-i18n="settings.cloudHeaderHint">(S3-compatible \u2014 AWS, R2, MinIO, B2)</span></label>
       <label><span data-i18n="settings.s3Endpoint">Endpoint</span> <span style="text-transform:none;color:var(--text-dim)" data-i18n="settings.s3EndpointHint">(e.g. https://s3.us-east-1.amazonaws.com)</span></label>
       <input type="text" id="setS3Endpoint" placeholder="https://s3.us-east-1.amazonaws.com">
       <div style="display:flex;gap:8px">
@@ -1491,12 +1547,12 @@ document.addEventListener('DOMContentLoaded', function() {
       <div id="s3Status" style="font-size:10px;color:var(--text-dim);min-height:14px;margin-bottom:6px"></div>
 
       <div style="border-top:1px solid var(--border);margin:14px 0 10px"></div>
-      <label style="font-weight:600;color:var(--accent-red);text-transform:none;letter-spacing:0;font-size:12px">&#x26A0; <span data-i18n="settings.dangerHeader">Danger Zone</span></label>
+      <label style="font-weight:600;color:var(--accent-red);text-transform:none;letter-spacing:0;font-size:12px"><svg class="ui-icon" aria-hidden="true"><use href="#i-alert-triangle"></use></svg> <span data-i18n="settings.dangerHeader">Danger Zone</span></label>
       <div style="font-size:10px;color:var(--text-dim);line-height:1.5;margin-bottom:8px" data-i18n="settings.clearAllDesc">Delete all local settings, conversations, memories, skills, files, sync config, and cached data on this device.</div>
-      <button type="button" class="modal-btn secondary" onclick="clearAllAppData()" style="width:100%;padding:8px 10px;font-size:11px;color:var(--accent-red);border-color:rgba(255,107,107,.35)">&#x1F5D1; <span data-i18n="settings.clearAllBtn">Clear all local data</span></button>
+      <button type="button" class="modal-btn secondary" onclick="clearAllAppData()" style="width:100%;padding:8px 10px;font-size:11px;color:var(--accent-red);border-color:rgba(255,107,107,.35)"><svg class="ui-icon" aria-hidden="true"><use href="#i-trash"></use></svg> <span data-i18n="settings.clearAllBtn">Clear all local data</span></button>
 
       <div style="display:flex;gap:8px;margin-top:8px">
-        <button class="modal-btn primary" onclick="saveSettings()" style="flex:1">&#x2705; <span data-i18n="modal.save">Save</span></button>
+        <button class="modal-btn primary" onclick="saveSettings()" style="flex:1"><svg class="ui-icon" aria-hidden="true"><use href="#i-check"></use></svg> <span data-i18n="modal.save">Save</span></button>
         <button class="modal-btn secondary" onclick="closeSettingsModal()" style="flex:1" data-i18n="modal.cancel">Cancel</button>
       </div>
       <div style="margin-top:10px;font-size:10px;color:var(--text-dim);line-height:1.5" data-i18n="settings.privacyNote">
@@ -1510,7 +1566,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <div class="modal-overlay" id="planModal">
   <div class="modal" style="width:clamp(320px,92vw,640px)">
     <div class="modal-header">
-      <h3>&#x1F4CB; <span data-i18n="planModal.title">Review Plan</span></h3>
+      <h3><svg class="ui-icon" aria-hidden="true"><use href="#i-clipboard-list"></use></svg> <span data-i18n="planModal.title">Review Plan</span></h3>
       <button class="modal-close" onclick="rejectPlan()">&times;</button>
     </div>
     <div class="modal-body">
@@ -1518,8 +1574,8 @@ document.addEventListener('DOMContentLoaded', function() {
       <label><span data-i18n="planModal.feedback">Feedback</span> <span style="text-transform:none;color:var(--text-dim)" data-i18n="planModal.feedbackHint">(only used on Reject \u2014 tells the agent what to revise)</span></label>
       <textarea id="planModalFeedback" placeholder="e.g. use threads instead of async; skip the cache layer" data-i18n-placeholder="planModal.feedbackPh" style="min-height:60px"></textarea>
       <div style="display:flex;gap:8px;margin-top:8px">
-        <button class="modal-btn primary" onclick="approvePlan()" style="flex:1">&#x2705; <span data-i18n="planModal.approve">Approve &amp; Execute</span></button>
-        <button class="modal-btn secondary" onclick="rejectPlan()" style="flex:1">&#x270D; <span data-i18n="planModal.reject">Reject &amp; Revise</span></button>
+        <button class="modal-btn primary" onclick="approvePlan()" style="flex:1"><svg class="ui-icon" aria-hidden="true"><use href="#i-check"></use></svg> <span data-i18n="planModal.approve">Approve &amp; Execute</span></button>
+        <button class="modal-btn secondary" onclick="rejectPlan()" style="flex:1"><svg class="ui-icon" aria-hidden="true"><use href="#i-pencil"></use></svg> <span data-i18n="planModal.reject">Reject &amp; Revise</span></button>
       </div>
       <div style="margin-top:10px;font-size:10px;color:var(--text-dim);line-height:1.5" data-i18n="planModal.note">
         Approve turns Plan Mode off and lets the agent execute write tools. Reject keeps Plan Mode on and returns your feedback so the agent can revise.
@@ -1532,7 +1588,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <div class="modal-overlay" id="hookModal">
   <div class="modal">
     <div class="modal-header">
-      <h3>&#x26A1; <span id="hookModalTitle" data-i18n="hookModal.addTitle">Add Hook</span></h3>
+      <h3><svg class="ui-icon" aria-hidden="true"><use href="#i-bolt"></use></svg> <span id="hookModalTitle" data-i18n="hookModal.addTitle">Add Hook</span></h3>
       <button class="modal-close" onclick="closeHookModal()">&times;</button>
     </div>
     <div class="modal-body">
@@ -1560,7 +1616,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <label style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:11px;color:var(--text-secondary);margin-bottom:10px"><input type="checkbox" id="hookEnabled" style="width:auto;margin:0" checked> <span data-i18n="hookModal.enabled">Enabled</span></label>
       <div id="hookModalStatus" style="font-size:10px;color:var(--text-dim);min-height:14px;margin-bottom:6px"></div>
       <div style="display:flex;gap:8px;margin-top:8px">
-        <button class="modal-btn primary" onclick="saveHookFromModal()" style="flex:1">&#x2705; <span data-i18n="modal.save">Save</span></button>
+        <button class="modal-btn primary" onclick="saveHookFromModal()" style="flex:1"><svg class="ui-icon" aria-hidden="true"><use href="#i-check"></use></svg> <span data-i18n="modal.save">Save</span></button>
         <button class="modal-btn secondary" onclick="closeHookModal()" style="flex:1" data-i18n="modal.cancel">Cancel</button>
       </div>
       <div style="margin-top:10px;font-size:10px;color:var(--text-dim);line-height:1.5">
@@ -1574,7 +1630,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <div class="modal-overlay" id="memoryModal">
   <div class="modal" style="width:clamp(320px,96vw,860px)">
     <div class="modal-header">
-      <h3>&#x1F9E0; <span data-i18n="memoryModal.title">Memory</span> <span style="font-size:10px;color:var(--text-dim);font-weight:400;text-transform:none;letter-spacing:0;margin-left:6px">Information + Time + Relationships</span></h3>
+      <h3><svg class="ui-icon" aria-hidden="true"><use href="#i-brain"></use></svg> <span data-i18n="memoryModal.title">Memory</span> <span style="font-size:10px;color:var(--text-dim);font-weight:400;text-transform:none;letter-spacing:0;margin-left:6px">Information + Time + Relationships</span></h3>
       <button class="modal-close" onclick="closeMemoryModal()">&times;</button>
     </div>
     <div class="modal-body">
@@ -1612,13 +1668,13 @@ document.addEventListener('DOMContentLoaded', function() {
             <option value="skill">skill</option>
             <option value="note">note</option>
           </select>
-          <button type="button" class="modal-btn primary" onclick="memAddFromUI()" style="padding:6px 14px;font-size:11px">&#x2795; <span data-i18n="modal.add">Add</span></button>
+          <button type="button" class="modal-btn primary" onclick="memAddFromUI()" style="padding:6px 14px;font-size:11px"><svg class="ui-icon" aria-hidden="true"><use href="#i-plus"></use></svg> <span data-i18n="modal.add">Add</span></button>
         </div>
       </div>
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
         <button type="button" class="modal-btn secondary" onclick="memExport()" style="flex:1;padding:6px 10px;font-size:11px">&#x2B07; Export JSON</button>
         <button type="button" class="modal-btn secondary" onclick="memImport()" style="flex:1;padding:6px 10px;font-size:11px">&#x2B06; Import JSON</button>
-        <button type="button" class="modal-btn secondary" onclick="memClearAll()" style="flex:1;padding:6px 10px;font-size:11px;color:var(--accent-red)">&#x1F5D1; <span data-i18n="memoryModal.clearAll">Clear all</span></button>
+        <button type="button" class="modal-btn secondary" onclick="memClearAll()" style="flex:1;padding:6px 10px;font-size:11px;color:var(--accent-red)"><svg class="ui-icon" aria-hidden="true"><use href="#i-trash"></use></svg> <span data-i18n="memoryModal.clearAll">Clear all</span></button>
         <button type="button" class="modal-btn secondary" onclick="closeMemoryModal()" style="flex:1;padding:6px 10px;font-size:11px" data-i18n="modal.close">Close</button>
       </div>
       <div style="margin-top:10px;font-size:10px;color:var(--text-dim);line-height:1.5">
@@ -1632,7 +1688,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <div class="html-modal-overlay" id="htmlModal" onclick="if(event.target===this)closeHtmlModal()">
   <div class="html-modal">
     <div class="html-modal-header">
-      <span style="font-size:16px">&#x1F310;</span>
+      <span style="font-size:16px"><svg class="ui-icon" aria-hidden="true"><use href="#i-globe"></use></svg></span>
       <span class="html-modal-path" id="htmlModalPath"></span>
       <div class="html-modal-tabs">
         <button class="html-modal-tab active" onclick="switchHtmlModalTab('preview',this)">Preview</button>
@@ -1839,7 +1895,7 @@ const I18N = {
     'skillModal.githubPath': 'Skill directory path (optional)',
     'skillModal.githubFetch': 'Fetch & Install',
     'skillModal.createName': 'Skill Name',
-    'skillModal.createIcon': 'Icon (emoji)',
+    'skillModal.createIcon': 'Icon (icon)',
     'skillModal.createDesc': 'Description',
     'skillModal.createDescPh': 'What this skill does',
     'skillModal.createTrigger': 'Trigger Pattern (regex, optional)',
@@ -2094,7 +2150,7 @@ const I18N = {
     'skillModal.githubPath': '技能目录路径（可选）',
     'skillModal.githubFetch': '获取并安装',
     'skillModal.createName': '技能名称',
-    'skillModal.createIcon': '图标（emoji）',
+    'skillModal.createIcon': '图标（icon）',
     'skillModal.createDesc': '描述',
     'skillModal.createDescPh': '此技能的功能',
     'skillModal.createTrigger': '触发模式（正则，可选）',
@@ -2581,14 +2637,14 @@ function toggleSysPromptEdit() {
   if (editor.readOnly) {
     editor.readOnly = false;
     editor.classList.add('editing');
-    btn.innerHTML = '&#x2714; Done';
+    btn.innerHTML = '<svg class="ui-icon" aria-hidden="true"><use href="#i-check"></use></svg> Done';
     btn.style.color = 'var(--accent-green)';
     btn.style.borderColor = 'var(--accent-green)';
     editor.focus();
   } else {
     editor.readOnly = true;
     editor.classList.remove('editing');
-    btn.innerHTML = '&#x270F; Edit';
+    btn.innerHTML = '<svg class="ui-icon" aria-hidden="true"><use href="#i-pencil"></use></svg> Edit';
     btn.style.color = '';
     btn.style.borderColor = '';
   }
@@ -2600,7 +2656,7 @@ function resetSysPrompt() {
   editor.readOnly = true;
   editor.classList.remove('editing');
   const btn = document.getElementById('spEditBtn');
-  btn.innerHTML = '&#x270F; Edit';
+  btn.innerHTML = '<svg class="ui-icon" aria-hidden="true"><use href="#i-pencil"></use></svg> Edit';
   btn.style.color = '';
   btn.style.borderColor = '';
 }
@@ -3204,15 +3260,15 @@ function showConvCtxMenu(e, id) {
   menu.className = 'fe-ctx';
   menu.id = 'convCtxMenu';
   const moveItems = [
-    `<div class="fe-ctx-item" onclick="closeConvCtxMenu();moveConvToFolder('${esc(id)}', '')">${conv && !conv.folderId ? '&#x2713; ' : ''}${esc(t('action.moveToRoot'))}</div>`,
-    ...convFolders.map(f => `<div class="fe-ctx-item" onclick="closeConvCtxMenu();moveConvToFolder('${esc(id)}', '${esc(f.id)}')">${conv && conv.folderId === f.id ? '&#x2713; ' : ''}&#x1F4C1; ${esc(f.name)}</div>`)
+    `<div class="fe-ctx-item" onclick="closeConvCtxMenu();moveConvToFolder('${esc(id)}', '')">${conv && !conv.folderId ? '<svg class="ui-icon" aria-hidden="true"><use href="#i-check"></use></svg> ' : ''}${esc(t('action.moveToRoot'))}</div>`,
+    ...convFolders.map(f => `<div class="fe-ctx-item" onclick="closeConvCtxMenu();moveConvToFolder('${esc(id)}', '${esc(f.id)}')">${conv && conv.folderId === f.id ? '<svg class="ui-icon" aria-hidden="true"><use href="#i-check"></use></svg> ' : ''}<svg class="ui-icon" aria-hidden="true"><use href="#i-folder"></use></svg> ${esc(f.name)}</div>`)
   ].join('');
-  menu.innerHTML = `<div class="fe-ctx-item" onclick="closeConvCtxMenu();renameConversation('${esc(id)}')">&#x270F;&#xFE0F; Rename</div>` +
+  menu.innerHTML = `<div class="fe-ctx-item" onclick="closeConvCtxMenu();renameConversation('${esc(id)}')"><svg class="ui-icon" aria-hidden="true"><use href="#i-pencil"></use></svg> Rename</div>` +
     `<div class="fe-ctx-sep"></div>` +
     `<div class="fe-ctx-item" style="color:var(--text-dim);cursor:default;pointer-events:none">${esc(t('action.moveToFolder'))}</div>` +
     moveItems +
     `<div class="fe-ctx-sep"></div>` +
-    `<div class="fe-ctx-item danger" onclick="closeConvCtxMenu();deleteConversation('${esc(id)}')">&#x1F5D1; Delete</div>`;
+    `<div class="fe-ctx-item danger" onclick="closeConvCtxMenu();deleteConversation('${esc(id)}')"><svg class="ui-icon" aria-hidden="true"><use href="#i-trash"></use></svg> Delete</div>`;
   menu.style.left = e.clientX + 'px';
   menu.style.top = e.clientY + 'px';
   document.body.appendChild(menu);
@@ -3230,9 +3286,9 @@ function showFolderCtxMenu(e, id) {
   const menu = document.createElement('div');
   menu.className = 'fe-ctx';
   menu.id = 'convCtxMenu';
-  menu.innerHTML = `<div class="fe-ctx-item" onclick="closeConvCtxMenu();renameConvFolder('${esc(id)}')">&#x270F;&#xFE0F; ${esc(t('action.renameFolder'))}</div>` +
+  menu.innerHTML = `<div class="fe-ctx-item" onclick="closeConvCtxMenu();renameConvFolder('${esc(id)}')"><svg class="ui-icon" aria-hidden="true"><use href="#i-pencil"></use></svg> ${esc(t('action.renameFolder'))}</div>` +
     `<div class="fe-ctx-sep"></div>` +
-    `<div class="fe-ctx-item danger" onclick="closeConvCtxMenu();deleteConvFolder('${esc(id)}')">&#x1F5D1; ${esc(t('action.deleteFolder'))}</div>`;
+    `<div class="fe-ctx-item danger" onclick="closeConvCtxMenu();deleteConvFolder('${esc(id)}')"><svg class="ui-icon" aria-hidden="true"><use href="#i-trash"></use></svg> ${esc(t('action.deleteFolder'))}</div>`;
   menu.style.left = e.clientX + 'px';
   menu.style.top = e.clientY + 'px';
   document.body.appendChild(menu);
@@ -3371,10 +3427,10 @@ function renderConvList() {
     const openCls = f.expanded ? ' open' : '';
     parts.push(`<div class="conv-folder${openCls}" data-folder-id="${f.id}" onclick="toggleConvFolder('${f.id}')" oncontextmenu="showFolderCtxMenu(event,'${f.id}')" ondragover="onConvDragOver(event,this)" ondragleave="onConvDragLeave(event,this)" ondrop="onConvDropToFolder(event,'${f.id}')">
       <span class="cf-arrow">&#x25B6;</span>
-      <span class="cf-icon">&#x1F4C1;</span>
+      <span class="cf-icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-folder"></use></svg></span>
       <span class="cf-name">${esc(f.name)}</span>
       <span class="cf-count">${children.length}</span>
-      <span class="cf-add" title="${esc(t('action.newConv'))}" onclick="event.stopPropagation();newConversation(false,'${f.id}')">&#x2795;</span>
+      <span class="cf-add" title="${esc(t('action.newConv'))}" onclick="event.stopPropagation();newConversation(false,'${f.id}')"><svg class="ui-icon" aria-hidden="true"><use href="#i-plus"></use></svg></span>
     </div>`);
     if (f.expanded) for (const c of children) parts.push(convItemHtml(c));
   }
@@ -3421,12 +3477,12 @@ async function ensurePyodide() {
   if (pyodideInstance) return pyodideInstance;
   if (pyodideLoading) { while (pyodideLoading) await new Promise(r => setTimeout(r, 100)); return pyodideInstance; }
   pyodideLoading = true;
-  appendSystemMsg('\u{1F40D} Loading Python runtime (Pyodide WASM)...');
+  appendSystemMsg('Loading Python runtime (Pyodide WASM)...');
   try {
     pyodideInstance = await loadPyodide();
     await pyodideInstance.loadPackage('micropip');
     pyodideLoading = false;
-    appendSystemMsg('\u{2705} Python runtime ready (Pyodide).');
+    appendSystemMsg('Python runtime ready (Pyodide).');
     return pyodideInstance;
   } catch (e) {
     pyodideLoading = false;
@@ -4557,7 +4613,7 @@ function parseSkillMd(text) {
 
 function installSkill(skill) {
   if (!skill.id) skill.id = 'skill_' + Date.now();
-  if (!skill.icon) skill.icon = '\u26A1';
+  if (!skill.icon) skill.icon = 'i:bolt';
   skill.active = skill.active !== false;
   if (!skill.tools) skill.tools = [];
   if (!skill.references) skill.references = {};
@@ -4621,8 +4677,8 @@ function renderSkills() {
     const refs = Object.keys(s.references || {}).length;
     const badge = refs ? ` <span style="color:var(--accent-cyan);font-size:9px">${refs}ref</span>` : '';
     return `<div class="skill-item ${s.active ? 'active' : 'off'}" onclick="toggleSkill('${s.id}')" title="${esc(s.description || '')}">
-      <span class="s-toggle">${s.active ? '\u{2705}' : '\u{26AA}'}</span>
-      <span class="s-icon">${esc(s.icon)}</span>
+      <span class="s-toggle">${s.active ? iconHtml('i:check-circle') : iconHtml('i:circle')}</span>
+      <span class="s-icon">${iconHtml(s.icon)}</span>
       <span class="s-name">${esc(s.name)}${ver}${badge}</span>
       <span class="s-remove" onclick="event.stopPropagation();removeSkill('${s.id}')" title="Remove">&times;</span>
     </div>`;
@@ -4641,7 +4697,7 @@ function renderTodos() {
   const done = todos.filter(t => t.status === 'completed').length;
   if (counts) counts.textContent = done + '/' + todos.length;
   el.innerHTML = todos.map(t => {
-    const icon = t.status === 'completed' ? '&#x2714;' : t.status === 'in_progress' ? '&#x25B6;' : '&#x25CB;';
+    const icon = t.status === 'completed' ? '<svg class="ui-icon" aria-hidden="true"><use href="#i-check"></use></svg>' : t.status === 'in_progress' ? '&#x25B6;' : '&#x25CB;';
     const color = t.status === 'completed' ? 'var(--accent-green,#00ff88)' : t.status === 'in_progress' ? 'var(--accent-orange)' : 'var(--text-dim)';
     const textStyle = t.status === 'completed' ? 'text-decoration:line-through;color:var(--text-dim)' : t.status === 'in_progress' ? 'color:var(--text-primary);font-weight:600' : 'color:var(--text-secondary)';
     const label = t.status === 'in_progress' ? (t.activeForm || t.content) : t.content;
@@ -4761,7 +4817,7 @@ function skillFromMd(text, source) {
   return {
     name: meta.name || 'unnamed-skill',
     description: meta.description || '',
-    icon: '\u26A1',
+    icon: 'i:bolt',
     body,
     version: (meta.metadata && meta.metadata.version) || meta.version || '',
     author: (meta.metadata && meta.metadata.author) || meta.author || '',
@@ -4966,7 +5022,7 @@ function createSkill() {
   if (toolsJson) { try { tools = JSON.parse(toolsJson); if (!Array.isArray(tools)) tools = [tools]; } catch (e) { alert('Invalid tool JSON: ' + e.message); return; } }
   installSkill({
     name,
-    icon: document.getElementById('skillCreateIcon').value.trim() || '\u26A1',
+    icon: document.getElementById('skillCreateIcon').value.trim() || 'i:bolt',
     description: document.getElementById('skillCreateDesc').value.trim(),
     trigger: document.getElementById('skillCreateTrigger').value.trim(),
     body: document.getElementById('skillCreatePrompt').value.trim(),
@@ -5022,10 +5078,10 @@ async function loadMarketplace(forceRefresh) {
     const entries = Array.isArray(data) ? data : (data.skills || data.entries || []);
     _mpEntries = entries;
     _mpLoaded = true;
-    status.textContent = `\u2705 ${entries.length} skills available`;
+    status.textContent = `${entries.length} skills available`;
     renderMarketplaceList();
   } catch (e) {
-    status.textContent = '\u26A0 Failed: ' + e.message + ' — check the registry URL or network.';
+    status.textContent = 'Failed: ' + e.message + ' — check the registry URL or network.';
     listEl.innerHTML = `<div style="font-size:11px;color:var(--text-dim);padding:16px;text-align:center;line-height:1.6">No registry loaded.<br>Default: <code style="font-size:10px">${esc(MP_DEFAULT_REGISTRY)}</code><br>Or set your own JSON index URL above.</div>`;
   }
 }
@@ -5047,7 +5103,7 @@ function renderMarketplaceList() {
     const tags = (e.tags || []).map(t => `<span class="mp-tag">${esc(String(t))}</span>`).join('');
     const already = installed.has(e.name);
     return `<div class="mp-card">
-      <div class="mp-icon">${esc(e.icon || '\u26A1')}</div>
+      <div class="mp-icon">${iconHtml(e.icon || 'i:bolt')}</div>
       <div class="mp-body">
         <div class="mp-name">${esc(e.name || 'unnamed')}${e.author ? `<span class="mp-author">by ${esc(e.author)}</span>` : ''}</div>
         <div class="mp-desc">${esc(e.description || '')}</div>
@@ -5079,17 +5135,17 @@ async function installFromMarketplace(index, btn) {
       const txt = await resp.text();
       let skill;
       try { skill = JSON.parse(txt); }
-      catch { skill = { name: entry.name, description: entry.description, icon: entry.icon || '\u26A1', body: txt, references: {}, scripts: {}, active: true }; }
+      catch { skill = { name: entry.name, description: entry.description, icon: entry.icon || 'i:bolt', body: txt, references: {}, scripts: {}, active: true }; }
       skill.source = 'marketplace:' + entry.name;
       installSkill(skill);
     } else {
       throw new Error('Entry has no repo/url/inline skill');
     }
-    status.textContent = `\u2705 Installed "${entry.name}"`;
+    status.textContent = `Installed "${entry.name}"`;
     if (btn) { btn.textContent = 'Installed'; btn.disabled = true; }
     renderMarketplaceList();
   } catch (e) {
-    status.textContent = '\u26A0 Install failed: ' + e.message;
+    status.textContent = 'Install failed: ' + e.message;
     if (btn) { btn.disabled = false; btn.textContent = 'Install'; }
   }
 }
@@ -5463,7 +5519,7 @@ function onImportMcpServersClick() {
   mcpImportFromJson(txt)
     .then(added => {
       const msg = t('mcpModal.importOk').replace('{n}', added.length);
-      appendSystemMsg('\u2705 MCP: ' + msg);
+      appendSystemMsg('MCP: ' + msg);
       document.getElementById('mcpServerJson').value = '';
     })
     .catch(e => alert(t('mcpModal.importFail') + e.message));
@@ -5479,7 +5535,7 @@ function onAddMcpServerManualClick() {
   mcpImportFromJson(JSON.stringify(cfg))
     .then(added => {
       ['mcpSrvName','mcpSrvUrl','mcpSrvToken'].forEach(id => document.getElementById(id).value = '');
-      appendSystemMsg('\u2705 MCP: added server "' + name + '"');
+      appendSystemMsg('MCP: added server "' + name + '"');
     })
     .catch(e => alert(t('mcpModal.importFail') + e.message));
 }
@@ -5615,8 +5671,8 @@ async function fetchModelsIntoSettings() {
   const provider = document.getElementById('setProvider').value.trim() || 'anthropic';
   const endpoint = document.getElementById('setEndpoint').value.trim().replace(/\/+$/, '');
   const apiKey = document.getElementById('setApiKey').value.trim();
-  if (!apiKey) { status.textContent = '\u26A0 API key required to fetch models'; return; }
-  if (!endpoint) { status.textContent = '\u26A0 API endpoint required to fetch models'; return; }
+  if (!apiKey) { status.textContent = 'API key required to fetch models'; return; }
+  if (!endpoint) { status.textContent = 'API endpoint required to fetch models'; return; }
   status.textContent = 'Fetching model list...';
   try {
     const url = endpoint + '/v1/models';
@@ -5632,13 +5688,13 @@ async function fetchModelsIntoSettings() {
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
     const models = (data.data || []).map(m => m.id).sort();
-    if (!models.length) { status.textContent = '\u26A0 No models returned'; return; }
+    if (!models.length) { status.textContent = 'No models returned'; return; }
     const sel = document.getElementById('setAvailableModels');
     const selected = new Set(getCurrentSelectedModels());
     sel.innerHTML = models.map(m => `<option value="${m}"${selected.has(m) ? ' selected' : ''}>${m}</option>`).join('');
-    status.textContent = `\u2705 Fetched ${models.length} models — select one or more, then click "Add Selected"`;
+    status.textContent = `Fetched ${models.length} models — select one or more, then click "Add Selected"`;
   } catch (e) {
-    status.textContent = '\u26A0 Fetch failed: ' + e.message;
+    status.textContent = 'Fetch failed: ' + e.message;
   }
 }
 
@@ -5652,9 +5708,9 @@ function setSelectedModels(list) {
 function addSelectedModelsToList() {
   const sel = document.getElementById('setAvailableModels');
   const chosen = Array.from(sel.selectedOptions).map(o => o.value);
-  if (!chosen.length) { document.getElementById('setStatus').textContent = '\u26A0 No models selected in the list above'; return; }
+  if (!chosen.length) { document.getElementById('setStatus').textContent = 'No models selected in the list above'; return; }
   setSelectedModels(getCurrentSelectedModels().concat(chosen));
-  document.getElementById('setStatus').textContent = `\u2705 Added ${chosen.length} model(s)`;
+  document.getElementById('setStatus').textContent = `Added ${chosen.length} model(s)`;
 }
 function addCustomModelToList() {
   const input = document.getElementById('setCustomModel');
@@ -5662,7 +5718,7 @@ function addCustomModelToList() {
   if (!val) return;
   setSelectedModels(getCurrentSelectedModels().concat([val]));
   input.value = '';
-  document.getElementById('setStatus').textContent = `\u2705 Added "${val}"`;
+  document.getElementById('setStatus').textContent = `Added "${val}"`;
 }
 
 function parseModelContexts(raw) {
@@ -5727,7 +5783,7 @@ async function saveSettings() {
   }
   _saveS3CfgFromModal();
   closeSettingsModal();
-  appendSystemMsg('\u2705 Settings saved.');
+  appendSystemMsg('Settings saved.');
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -6428,7 +6484,7 @@ async function pushSnapshotToS3(silent) {
     const totalObjs = objects.size, totalBlobs = blobs.size;
     const kb = (newBytes / 1024).toFixed(1);
     if (!silent) appendSystemMsg(
-      '\u2601 Push: ' + objectsToUpload.length + '/' + totalObjs + ' object(s), '
+      'Push: ' + objectsToUpload.length + '/' + totalObjs + ' object(s), '
       + blobsToUpload.length + '/' + totalBlobs + ' blob(s) uploaded, '
       + kb + ' KB new'
       + (cfg.passphrase ? ' \u2014 encrypted' : '')
@@ -6467,7 +6523,7 @@ async function pullSnapshotFromS3() {
       await _applyV1Snapshot(v1);
       try { localStorage.setItem(S3_LAST_SYNC_KEY, String(Date.now())); } catch {}
       _updateSyncStatus();
-      appendSystemMsg('\u2601 Pulled v1 snapshot (' + (v1.conversations?.meta?.length || 0) + ' conv, ' + (v1.skills?.metadata?.length || 0) + ' skills). Push to migrate to v2.');
+      appendSystemMsg('Pulled v1 snapshot (' + (v1.conversations?.meta?.length || 0) + ' conv, ' + (v1.skills?.metadata?.length || 0) + ' skills). Push to migrate to v2.');
       _clearProgress();
       return;
     }
@@ -6538,7 +6594,7 @@ async function pullSnapshotFromS3() {
     try { localStorage.setItem(S3_LAST_PASS_HASH_KEY, passHash); } catch {}
     _updateSyncStatus();
     appendSystemMsg(
-      '\u2601 Pull: ' + neededObjHashes.length + ' object(s) downloaded, '
+      'Pull: ' + neededObjHashes.length + ' object(s) downloaded, '
       + blobsNeeded.length + ' blob(s) downloaded, rest reused locally.'
     );
     _clearProgress();
@@ -6553,20 +6609,20 @@ async function testS3Connection() {
   if (status) status.textContent = 'Testing connection...';
   const cfg = _readS3CfgFromModal();
   if (!_s3Configured(cfg)) {
-    if (status) status.textContent = '\u26A0 Fill endpoint / bucket / access key / secret first.';
+    if (status) status.textContent = 'Fill endpoint / bucket / access key / secret first.';
     return;
   }
   try {
     // HEAD on snapshot key — 404 is OK (means the bucket is reachable and auth works).
     await _s3Head(cfg, _manifestKey(cfg));
-    if (status) status.textContent = '\u2705 Connection OK \u2014 bucket is reachable.';
+    if (status) status.textContent = 'Connection OK — bucket is reachable.';
   } catch (e) {
     const msg = String(e.message || e);
     if (status) {
       if (/Failed to fetch|NetworkError|CORS/i.test(msg)) {
-        status.textContent = '\u26A0 Network/CORS error. Click "Show CORS config" and apply it to the bucket.';
+        status.textContent = 'Network/CORS error. Click "Show CORS config" and apply it to the bucket.';
       } else {
-        status.textContent = '\u26A0 ' + msg;
+        status.textContent = msg;
       }
     }
   }
@@ -6643,10 +6699,10 @@ function _updateSyncStatus() {
   el.textContent = t('sync.lastSynced') + ' ' + ago + (cfg.passphrase ? ' \u2014 ' + t('sync.encrypted') : '');
 }
 async function onSyncPushClick() {
-  try { await pushSnapshotToS3(); } catch (e) { appendSystemMsg('\u26A0 Push failed: ' + (e.message || e)); }
+  try { await pushSnapshotToS3(); } catch (e) { appendSystemMsg('Push failed: ' + (e.message || e)); }
 }
 async function onSyncPullClick() {
-  try { await pullSnapshotFromS3(); } catch (e) { appendSystemMsg('\u26A0 Pull failed: ' + (e.message || e)); }
+  try { await pullSnapshotFromS3(); } catch (e) { appendSystemMsg('Pull failed: ' + (e.message || e)); }
 }
 
 // ── Auto-push debouncer (called from saveCurrentConv / saveSkills) ─
@@ -6658,7 +6714,7 @@ function schedulePush() {
   if (!cfg || !cfg.autoPush || !_s3Configured(cfg)) return;
   clearTimeout(_s3PushTimer);
   _s3PushTimer = setTimeout(() => {
-    pushSnapshotToS3(true).catch(e => { console.warn('Auto-push failed:', e); appendSystemMsg('\u26A0 Auto-push failed: ' + (e.message || e)); });
+    pushSnapshotToS3(true).catch(e => { console.warn('Auto-push failed:', e); appendSystemMsg('Auto-push failed: ' + (e.message || e)); });
   }, 10000);
 }
 
@@ -6669,8 +6725,8 @@ function togglePlanMode() {
   planMode = !planMode;
   renderPlanButton();
   appendSystemMsg(planMode
-    ? '\u{1F4CB} Plan Mode ON \u2014 write tools blocked. The agent should explore, then call ExitPlanMode with a plan for your approval.'
-    : '\u{1F4CB} Plan Mode OFF \u2014 all tools available.');
+    ? 'Plan Mode ON — write tools blocked. The agent should explore, then call ExitPlanMode with a plan for your approval.'
+    : 'Plan Mode OFF — all tools available.');
 }
 function renderPlanButton() {
   const btn = document.getElementById('planBtn');
@@ -6749,7 +6805,7 @@ function removeMcpTool(name) {
 function renderMcpToolList() {
   const el = document.getElementById('mcpToolList');
   if (!mcpTools.length) { el.textContent = t('mcpModal.noneInstalled'); return; }
-  el.innerHTML = mcpTools.map(mt => `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0"><span>\u{1F527} ${esc(mt.name)}</span><span class="c-del" style="opacity:1;cursor:pointer" onclick="removeMcpTool('${esc(mt.name)}')">&times;</span></div>`).join('');
+  el.innerHTML = mcpTools.map(mt => `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0"><span>${iconHtml('i:wrench')} ${esc(mt.name)}</span><span class="c-del" style="opacity:1;cursor:pointer" onclick="removeMcpTool('${esc(mt.name)}')">&times;</span></div>`).join('');
 }
 
 async function executeMcpTool(name, input) {
@@ -7318,7 +7374,7 @@ function renderMemoryButton() {
 }
 
 async function openMemoryModal() {
-  if (!memIsEnabled()) { appendSystemMsg('\u{1F9E0} ' + t('mem.disabledHint')); return; }
+  if (!memIsEnabled()) { appendSystemMsg(t('mem.disabledHint')); return; }
   await memLoadCache();
   document.getElementById('memSearchInput').value = '';
   document.getElementById('memFilterType').value = '';
@@ -7401,8 +7457,8 @@ function renderMemoryList() {
     return `<div style="border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:6px;background:var(--bg-panel);opacity:${retired ? '0.55' : '1'}">
       <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:4px">
         <div style="flex:1;font-size:12px;color:var(--text-primary);line-height:1.5;word-break:break-word;${retired ? 'text-decoration:line-through' : ''}">${esc(r.content)}</div>
-        <button type="button" title="${r.pinned ? 'Unpin' : 'Pin'}" onclick="memTogglePin('${r.id}')" style="background:transparent;border:none;color:${r.pinned ? 'var(--accent-orange)' : 'var(--text-dim)'};cursor:pointer;font-size:14px;padding:0 4px">\u{1F4CC}</button>
-        <button type="button" title="Delete" onclick="memDeleteFromUI('${r.id}')" style="background:transparent;border:none;color:var(--text-dim);cursor:pointer;font-size:12px;padding:0 4px">\u2715</button>
+        <button type="button" title="${r.pinned ? 'Unpin' : 'Pin'}" onclick="memTogglePin('${r.id}')" style="background:transparent;border:none;color:${r.pinned ? 'var(--accent-orange)' : 'var(--text-dim)'};cursor:pointer;font-size:14px;padding:0 4px">${iconHtml('i:pin')}</button>
+        <button type="button" title="Delete" onclick="memDeleteFromUI('${r.id}')" style="background:transparent;border:none;color:var(--text-dim);cursor:pointer;font-size:12px;padding:0 4px">${iconHtml('i:x')}</button>
       </div>
       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:10px;color:var(--text-dim);font-family:'JetBrains Mono',monospace">
         <span style="color:${typeColor}">${esc(r.type || 'fact')}</span>
@@ -7644,10 +7700,10 @@ function saveHookFromModal() {
   const code = document.getElementById('hookCode').value;
   const enabled = document.getElementById('hookEnabled').checked;
   const status = document.getElementById('hookModalStatus');
-  if (!name) { status.textContent = '\u26A0 Name is required.'; return; }
-  if (!HOOK_EVENTS.includes(event)) { status.textContent = '\u26A0 Invalid event.'; return; }
+  if (!name) { status.textContent = 'Name is required.'; return; }
+  if (!HOOK_EVENTS.includes(event)) { status.textContent = 'Invalid event.'; return; }
   try { new Function('ctx', code); }
-  catch (e) { status.textContent = '\u26A0 Syntax error: ' + e.message; return; }
+  catch (e) { status.textContent = 'Syntax error: ' + e.message; return; }
   if (_editingHookId) {
     const i = hooks.findIndex(h => h.id === _editingHookId);
     if (i >= 0) hooks[i] = { ...hooks[i], name, event, code, enabled };
@@ -7681,7 +7737,7 @@ function renderHooks() {
   el.innerHTML = hooks.map(h => `
     <div class="hook-item" style="display:flex;align-items:center;gap:6px;cursor:default">
       <input type="checkbox" ${h.enabled ? 'checked' : ''} onchange="toggleHookEnabled('${h.id}')" title="Enable/disable" style="margin:0;cursor:pointer">
-      <span class="h-icon">&#x26A1;</span>
+      <span class="h-icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-bolt"></use></svg></span>
       <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;${h.enabled ? '' : 'opacity:0.5;'}" onclick="openHookModal('${h.id}')" title="Edit">${esc(h.name)} <span style="color:var(--text-dim);font-size:10px">${esc(h.event)}</span></span>
       <button class="skill-install-btn" style="flex:none;margin:0;padding:2px 6px;font-size:10px" onclick="deleteHook('${h.id}')" title="Delete">&times;</button>
     </div>
@@ -7723,10 +7779,10 @@ function rebuildToolDefs(headId = activeEntryId) {
 }
 
 function renderToolsGrid() {
-  const icons = { Read: '\u{1F4D6}', Write: '\u{1F4DD}', Edit: '\u{270F}', Glob: '\u{1F50D}', Grep: '\u{1F50E}', Bash: '\u{1F4BB}', PythonExec: '\u{1F40D}', JSExec: '\u{1F7E8}', WebSearch: '\u{1F310}', Fetch: '\u{1F4E1}' };
+  const icons = { Read: 'i:book', Write: 'i:file-pen', Edit: 'i:pencil', Glob: 'i:search', Grep: 'i:search', Bash: 'i:terminal', PythonExec: 'i:terminal', JSExec: 'i:terminal', WebSearch: 'i:globe', Fetch: 'i:antenna' };
   const el = document.getElementById('toolsGrid');
   el.innerHTML = allToolsAnthropic.map(t => {
-    const ic = icons[t.name] || '\u{1F527}';
+    const ic = icons[t.name] || 'i:wrench';
     const enabled = !disabledTools.has(t.name);
     return `<div class="tg-card ${enabled ? 'enabled' : ''}" data-tool="${esc(t.name)}" title="${esc(t.description)}" onclick="toggleToolEnabled('${esc(t.name)}')" style="${enabled ? '' : 'opacity:0.4'}"><div class="tg-badge"></div><div class="tg-icon">${ic}</div><div class="tg-name">${esc(t.name)}</div></div>`;
   }).join('');
@@ -8077,7 +8133,7 @@ function renderFileTree() {
       if (ch.type === 'dir') {
         if (!seenDirs.has(fp)) { collapsedDirs.add(fp); seenDirs.add(fp); }
         const open = !collapsedDirs.has(fp);
-        items.push(`<div class="fe-item dir indent-${indent}${sel}" data-path="${esc(fp)}" onclick="feToggleDir('${esc(fp)}')" oncontextmenu="feCtx(event,'${esc(fp)}','dir')">${checkbox}<span class="arrow ${open ? 'open' : ''}">\u25B6</span><span class="icon">${open ? '\u{1F4C2}' : '\u{1F4C1}'}</span><span class="name">${esc(nm)}</span></div>`);
+        items.push(`<div class="fe-item dir indent-${indent}${sel}" data-path="${esc(fp)}" onclick="feToggleDir('${esc(fp)}')" oncontextmenu="feCtx(event,'${esc(fp)}','dir')">${checkbox}<span class="arrow ${open ? 'open' : ''}">\u25B6</span><span class="icon">${open ? iconHtml('i:folder-open') : iconHtml('i:folder')}</span><span class="name">${esc(nm)}</span></div>`);
         if (open) walk(ch, fp, d + 1);
       } else {
         const act = currentViewFile === fp ? ' active' : '';
@@ -8266,22 +8322,22 @@ function feCtx(e, path, type) {
   menu.style.top = e.clientY + 'px';
   const items = [];
   if (type === 'file') {
-    items.push({ icon: '\u{1F4C4}', label: 'Open', action: () => openFileViewer(path) });
-    items.push({ icon: '\u{270F}', label: 'Edit', action: () => feEditFile(path) });
+    items.push({ icon: iconHtml('i:file-text'), label: 'Open', action: () => openFileViewer(path) });
+    items.push({ icon: iconHtml('i:pencil'), label: 'Edit', action: () => feEditFile(path) });
     items.push({ icon: '\u{2B07}', label: 'Download', action: () => feDownloadItem(path) });
     items.push('sep');
-    items.push({ icon: '\u{270F}', label: 'Rename', action: () => feRename(path) });
-    items.push({ icon: '\u{1F4CB}', label: 'Duplicate', action: () => feDuplicate(path) });
+    items.push({ icon: iconHtml('i:pencil'), label: 'Rename', action: () => feRename(path) });
+    items.push({ icon: iconHtml('i:clipboard-list'), label: 'Duplicate', action: () => feDuplicate(path) });
     items.push('sep');
-    items.push({ icon: '\u{1F5D1}', label: 'Delete', action: () => feDeleteItem(path), danger: true });
+    items.push({ icon: iconHtml('i:trash'), label: 'Delete', action: () => feDeleteItem(path), danger: true });
   } else {
-    items.push({ icon: '\u{2795}', label: 'New File Here', action: () => feNewFileIn(path) });
-    items.push({ icon: '\u{1F4C1}', label: 'New Folder Here', action: () => feNewFolderIn(path) });
+    items.push({ icon: iconHtml('i:plus'), label: 'New File Here', action: () => feNewFileIn(path) });
+    items.push({ icon: iconHtml('i:folder'), label: 'New Folder Here', action: () => feNewFolderIn(path) });
     items.push('sep');
-    items.push({ icon: '\u{270F}', label: 'Rename', action: () => feRename(path) });
+    items.push({ icon: iconHtml('i:pencil'), label: 'Rename', action: () => feRename(path) });
     items.push({ icon: '\u{2B07}', label: 'Download', action: () => feDownloadItem(path) });
     items.push('sep');
-    items.push({ icon: '\u{1F5D1}', label: 'Delete', action: () => feDeleteItem(path), danger: true });
+    items.push({ icon: iconHtml('i:trash'), label: 'Delete', action: () => feDeleteItem(path), danger: true });
   }
   menu.innerHTML = items.map(it => it === 'sep' ? '<div class="fe-ctx-sep"></div>' : `<div class="fe-ctx-item${it.danger ? ' danger' : ''}" data-action="1">${it.icon} ${it.label}</div>`).join('');
   const actionItems = items.filter(it => it !== 'sep');
@@ -8416,8 +8472,16 @@ function feNewFolderIn(dirPath) {
   const name = prompt('Folder name:', 'new-folder');
   if (name) { vfsMkdir(dirPath + '/' + name); renderFileTree(); }
 }
-function getFileIcon(n) { const e = n.split('.').pop().toLowerCase(); return { py:'\u{1F40D}', js:'\u{1F7E8}', ts:'\u{1F535}', html:'\u{1F310}', css:'\u{1F3A8}', json:'\u{1F4CB}', md:'\u{1F4DD}', yaml:'\u{2699}', yml:'\u{2699}', txt:'\u{1F4C4}', png:'\u{1F5BC}', jpg:'\u{1F5BC}', jpeg:'\u{1F5BC}', gif:'\u{1F5BC}', webp:'\u{1F5BC}', svg:'\u{1F5BC}', pdf:'\u{1F4D1}', pptx:'\u{1F4CA}', xlsx:'\u{1F4C8}', xls:'\u{1F4C8}', docx:'\u{1F4C4}', doc:'\u{1F4C4}', zip:'\u{1F4E6}', mp3:'\u{1F3B5}', mp4:'\u{1F3AC}' }[e] || '\u{1F4C4}'; }
+function getFileIcon(n) { const e = n.split('.').pop().toLowerCase(); return { py:'i:code', js:'i:code', ts:'i:code', html:'i:globe', css:'i:palette', json:'i:braces', md:'i:file-text', yaml:'i:settings', yml:'i:settings', txt:'i:file-text', png:'i:image', jpg:'i:image', jpeg:'i:image', gif:'i:image', webp:'i:image', svg:'i:image', pdf:'i:file', pptx:'i:chart', xlsx:'i:sheet', xls:'i:sheet', docx:'i:file-text', doc:'i:file-text', zip:'i:archive', mp3:'i:music', mp4:'i:film' }[e] || 'i:file-text'; }
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function iconHtml(icon, cls='ui-icon') {
+  const v = (icon == null) ? '' : String(icon).trim();
+  const m = v.match(/^i:([a-z0-9-]+)$/i);
+  if (m) return `<svg class="${cls}" aria-hidden="true"><use href="#i-${m[1].toLowerCase()}"></use></svg>`;
+  // Fallback: render whatever string was stored (escaped).
+  return `<span class="emoji-icon">${esc(v || '')}</span>`;
+}
+
 
 function getMimeType(ext) {
   const m = { png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', gif:'image/gif', bmp:'image/bmp', webp:'image/webp', svg:'image/svg+xml', ico:'image/x-icon', pdf:'application/pdf', pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation', xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', xls:'application/vnd.ms-excel', docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document', doc:'application/msword', mp3:'audio/mpeg', mp4:'video/mp4', wav:'audio/wav' };
@@ -8455,7 +8519,7 @@ async function openFileViewer(path) {
       // Office files: show info + download button. Try Google Docs Viewer for online preview.
       const sizeKB = (size / 1024).toFixed(1);
       fvContent.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:16px;padding:20px">
-        <div style="font-size:48px">${{pptx:'\u{1F4CA}',xlsx:'\u{1F4C8}',xls:'\u{1F4C8}',docx:'\u{1F4C4}',doc:'\u{1F4C4}'}[ext] || '\u{1F4C1}'}</div>
+        <div style="font-size:48px">${iconHtml({pptx:'i:chart',xlsx:'i:sheet',xls:'i:sheet',docx:'i:file-text',doc:'i:file-text'}[ext] || 'i:folder','ui-icon')}</div>
         <div style="font-size:14px;font-weight:600">${esc(path.split('/').pop())}</div>
         <div style="font-size:12px;color:var(--text-secondary)">${sizeKB} KB &middot; ${ext.toUpperCase()}</div>
         <button class="top-btn" onclick="downloadCurrentFile()" style="padding:8px 20px;font-size:13px">\u{2B07} Download to preview</button>
@@ -8464,7 +8528,7 @@ async function openFileViewer(path) {
       // Generic binary
       const sizeKB = (size / 1024).toFixed(1);
       fvContent.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px">
-        <div style="font-size:48px">\u{1F4C1}</div>
+        <div style="font-size:48px">${iconHtml('i:folder','ui-icon')}</div>
         <div style="font-size:13px">${esc(path.split('/').pop())}</div>
         <div style="font-size:12px;color:var(--text-secondary)">${sizeKB} KB</div>
         <button class="top-btn" onclick="downloadCurrentFile()" style="padding:8px 20px">\u{2B07} Download</button>
@@ -8486,7 +8550,7 @@ async function openFileViewer(path) {
       const sizeKB = (content.length / 1024).toFixed(1);
       const head = esc(content.slice(0, 4000));
       fvContent.innerHTML = `<div style="padding:14px;display:flex;flex-direction:column;gap:10px;height:100%;box-sizing:border-box">
-        <div style="font-size:12px;color:var(--text-secondary)">\u26A0 ${esc(name)} is ${sizeKB} KB — preview truncated to first 4 KB to keep the UI responsive. Use Download to get the full file, or Edit to open the raw text.</div>
+        <div style="font-size:12px;color:var(--text-secondary)">${esc(name)} is ${sizeKB} KB — preview truncated to first 4 KB to keep the UI responsive. Use Download to get the full file, or Edit to open the raw text.</div>
         <pre style="flex:1;overflow:auto;background:var(--bg-root);padding:10px;border-radius:4px;white-space:pre-wrap;font-family:'JetBrains Mono',monospace;font-size:12px;margin:0">${head}${content.length > 4000 ? '\n\n\u2026 [truncated]' : ''}</pre>
         <div style="display:flex;gap:6px"><button class="top-btn" onclick="downloadCurrentFile()">\u{2B07} Download</button><button class="top-btn" onclick="feEditFile(currentViewFile)">Edit raw</button></div>
       </div>`;
@@ -8737,7 +8801,7 @@ uploadZone.addEventListener('drop', async e => {
     if (e.dataTransfer.files?.length) await handleFiles(e.dataTransfer.files);
   } catch (err) {
     console.error('Upload failed:', err, err?.stack);
-    if (typeof appendSystemMsg === 'function') appendSystemMsg(`\u26A0 Upload failed: ${err?.name || 'Error'}: ${err?.message || err}`);
+    if (typeof appendSystemMsg === 'function') appendSystemMsg(`Upload failed: ${err?.name || 'Error'}: ${err?.message || err}`);
   }
 });
 function isBinaryFile(name) { const ext = name.split('.').pop().toLowerCase(); return BINARY_EXTS.has(ext); }
@@ -8887,7 +8951,7 @@ function logMemEntry(type, text) {
 async function checkAndCompact() {
   const te = Math.max(0, Number(contextTokens) || 0);
   const limit = Math.max(1, Number(currentMaxContextTokens) || DEFAULT_MAX_CONTEXT_TOKENS);
-  if (te > limit * 0.75) { appendSystemMsg('\u{1F5DC} Memory approaching limit. Auto-compacting...'); await compactMemory(); }
+  if (te > limit * 0.75) { appendSystemMsg('Memory approaching limit. Auto-compacting...'); await compactMemory(); }
   updateMemoryUI();
 }
 
@@ -8895,7 +8959,7 @@ async function compactMemory() {
   rebuildConversation();
   if (conversation.length <= 6 || !activeEntryId || !sessionEntries.length) return;
   logMemEntry('compact', 'Compacting via LLM...');
-  appendSystemMsg('\u{1F5DC} Summarizing conversation history via LLM...');
+  appendSystemMsg('Summarizing conversation history via LLM...');
   const keep = 4;
   const byId = new Map(sessionEntries.map(entry => [entry.id, entry]));
   const chain = [];
@@ -8959,7 +9023,7 @@ async function compactMemory() {
   rebuildConversation();
   contextTokens = 0;
   logMemEntry('compact', `Compacted ${toCompact.length} messages → summary`);
-  appendSystemMsg(`\u{1F5DC} Compacted ${toCompact.length} messages.`);
+  appendSystemMsg(`Compacted ${toCompact.length} messages.`);
   updateMemoryUI();
 }
 
@@ -9183,7 +9247,7 @@ async function agentLoop(userContent, displayText, fileList, usedSkills) {
   // on_user_submit hook: may block or rewrite the user's text
   const userTextPre = getUserTextFromContent(userContent) || displayText || '';
   const submitCtx = await runHooks('on_user_submit', { text: userTextPre, files: fileList || [], usedSkills: usedSkillNames });
-  if (submitCtx._blocked) { appendSystemMsg(`\u26A0 Blocked by hook [${submitCtx._blocked.by}]: ${submitCtx._blocked.reason}`); return; }
+  if (submitCtx._blocked) { appendSystemMsg(`Blocked by hook [${submitCtx._blocked.by}]: ${submitCtx._blocked.reason}`); return; }
   if (typeof submitCtx.text === 'string' && submitCtx.text !== userTextPre) {
     // Replace the first text block in userContent with the rewritten text.
     if (Array.isArray(userContent)) {
@@ -9447,13 +9511,13 @@ function appendUserBubble(t, fileList, usedSkills, promptIndex = null, promptEnt
   const tags = [];
   if (usedSkills && usedSkills.length) {
     for (const sk of usedSkills) {
-      tags.push(`<span style="font-size:10px;padding:2px 6px;background:rgba(255,215,0,0.1);border:1px solid var(--accent-yellow);border-radius:3px;color:var(--accent-yellow);font-family:JetBrains Mono,monospace">${sk.icon || '\u26A1'} /${esc(sk.name)}</span>`);
+      tags.push(`<span style="font-size:10px;padding:2px 6px;background:rgba(255,215,0,0.1);border:1px solid var(--accent-yellow);border-radius:3px;color:var(--accent-yellow);font-family:JetBrains Mono,monospace">${iconHtml(sk.icon || 'i:bolt')} /${esc(sk.name)}</span>`);
     }
   }
   if (fileList && fileList.length) {
     for (const fp of fileList) {
       const name = fp.split('/').pop();
-      tags.push(`<span style="font-size:10px;padding:2px 6px;background:var(--bg-root);border:1px solid var(--border);border-radius:3px;color:var(--accent-blue);font-family:JetBrains Mono,monospace;cursor:pointer" onclick="openFileViewer('${esc(fp)}')" title="${esc(fp)}">\u{1F4CE} ${esc(name)}</span>`);
+      tags.push(`<span style="font-size:10px;padding:2px 6px;background:var(--bg-root);border:1px solid var(--border);border-radius:3px;color:var(--accent-blue);font-family:JetBrains Mono,monospace;cursor:pointer" onclick="openFileViewer('${esc(fp)}')" title="${esc(fp)}">${iconHtml('i:paperclip')} ${esc(name)}</span>`);
     }
   }
   if (tags.length) chips = '<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px">' + tags.join('') + '</div>';
@@ -9579,7 +9643,7 @@ function appendFilePreview(parentEl, content, filePath) {
   wrap.onclick = () => openPreviewModal(filePath, content, type);
   const fname = filePath ? filePath.split('/').pop() : 'preview';
   const size = content ? (content.length / 1024).toFixed(1) : '0';
-  const icon = type === 'md' ? '\u{1F4DD}' : '\u{1F310}';
+  const icon = type === 'md' ? iconHtml('i:pencil') : iconHtml('i:globe');
   const label = type === 'md' ? 'Markdown' : 'HTML';
   wrap.innerHTML = `<div class="html-preview-header">
     <span class="html-preview-icon">${icon}</span>
@@ -9764,7 +9828,7 @@ function renderChips() {
   const el = document.getElementById('inputChips');
   let html = '';
   html += invokedSkills.map(s =>
-    `<div class="input-chip" style="border-color:var(--accent-yellow);color:var(--accent-yellow)" title="Skill: ${esc(s.name)}"><span class="chip-name">${s.icon || '\u26A1'} /${esc(s.name)}</span><button class="chip-close" onclick="removeInvokedSkill('${esc(s.id)}')">&times;</button></div>`
+    `<div class="input-chip" style="border-color:var(--accent-yellow);color:var(--accent-yellow)" title="Skill: ${esc(s.name)}"><span class="chip-name">${s.icon || 'i:bolt'} /${esc(s.name)}</span><button class="chip-close" onclick="removeInvokedSkill('${esc(s.id)}')">&times;</button></div>`
   ).join('');
   html += attachedFiles.map(fp => {
     const name = fp.split('/').pop();
@@ -9825,7 +9889,7 @@ function showAtDropdown(query) {
   dd.innerHTML = `<div class="at-dropdown-header">Files (${filtered.length}${filtered.length > 20 ? ', showing 20' : ''})</div>` +
     items.map((f, i) => {
       const sizeStr = f.size < 1024 ? f.size + 'B' : (f.size / 1024).toFixed(1) + 'K';
-      const icon = f.binary ? '\u{1F4CE}' : getFileIcon(f.name);
+      const icon = f.binary ? 'i:paperclip' : getFileIcon(f.name);
       const already = attachedFiles.includes(f.path) ? ' style="opacity:0.4"' : '';
       return `<div class="at-item${i === 0 ? ' selected' : ''}" data-path="${esc(f.path)}" onclick="atSelect('${esc(f.path)}')"${already}><span class="at-icon">${icon}</span><span class="at-path">${esc(f.path)}</span><span class="at-size">${sizeStr}</span></div>`;
     }).join('');
@@ -9849,7 +9913,7 @@ function showSlashDropdown(query) {
       const cur = invokedSkills.some(sk => sk.id === s.id) ? ' style="opacity:0.4"' : '';
       const inactive = !s.active ? ' style="opacity:0.5"' : '';
       const badge = s.active ? '' : ' <span style="font-size:8px;color:var(--text-dim)">(off)</span>';
-      return `<div class="at-item${sel}" data-skill-id="${esc(s.id)}" onclick="slashSelect('${esc(s.id)}')"${cur || inactive}><span class="at-icon">${s.icon || '\u26A1'}</span><span class="at-path">/${esc(s.name)}${badge}</span><span class="at-size">${esc((s.description || '').slice(0, 30))}</span></div>`;
+      return `<div class="at-item${sel}" data-skill-id="${esc(s.id)}" onclick="slashSelect('${esc(s.id)}')"${cur || inactive}><span class="at-icon">${iconHtml(s.icon || 'i:bolt')}</span><span class="at-path">/${esc(s.name)}${badge}</span><span class="at-size">${esc((s.description || '').slice(0, 30))}</span></div>`;
     }).join('');
   dd.classList.add('show');
   atActive = true;
@@ -10329,7 +10393,7 @@ marked.setOptions({ gfm: true, breaks: true });
     applyModelContextLimit();
     updateWsStatus();
     if (!_keys.api_key) {
-      appendSystemMsg('\u26A0 No LLM API key configured. Click \u2699 Settings in the top bar to add one.');
+      appendSystemMsg('No LLM API key configured. Click Settings in the top bar to add one.');
     } else {
       _swReady = await initServiceWorker(_keys);
     }
@@ -10338,7 +10402,7 @@ marked.setOptions({ gfm: true, breaks: true });
     if (models.length) populateModelDropdown(models);
   } catch (e) {
     console.error('Init error:', e);
-    appendSystemMsg('\u26A0 Init failed: ' + e.message);
+    appendSystemMsg('Init failed: ' + e.message);
   }
 })();
 
