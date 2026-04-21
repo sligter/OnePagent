@@ -7784,7 +7784,7 @@ function renderToolsGrid() {
   el.innerHTML = allToolsAnthropic.map(t => {
     const ic = icons[t.name] || 'i:wrench';
     const enabled = !disabledTools.has(t.name);
-    return `<div class="tg-card ${enabled ? 'enabled' : ''}" data-tool="${esc(t.name)}" title="${esc(t.description)}" onclick="toggleToolEnabled('${esc(t.name)}')" style="${enabled ? '' : 'opacity:0.4'}"><div class="tg-badge"></div><div class="tg-icon">${ic}</div><div class="tg-name">${esc(t.name)}</div></div>`;
+    return `<div class="tg-card ${enabled ? 'enabled' : ''}" data-tool="${esc(t.name)}" title="${esc(t.description)}" onclick="toggleToolEnabled('${esc(t.name)}')" style="${enabled ? '' : 'opacity:0.4'}"><div class="tg-badge"></div><div class="tg-icon">${iconHtml(ic)}</div><div class="tg-name">${esc(t.name)}</div></div>`;
   }).join('');
 }
 
@@ -8137,7 +8137,7 @@ function renderFileTree() {
         if (open) walk(ch, fp, d + 1);
       } else {
         const act = currentViewFile === fp ? ' active' : '';
-        items.push(`<div class="fe-item indent-${indent}${act}${sel}" data-path="${esc(fp)}" onclick="openFileViewer('${esc(fp)}')" oncontextmenu="feCtx(event,'${esc(fp)}','file')" draggable="true" ondragstart="feStartDrag(event,'${esc(fp)}')">${checkbox}<span class="arrow"></span><span class="icon">${getFileIcon(nm)}</span><span class="name">${esc(nm)}</span></div>`);
+        items.push(`<div class="fe-item indent-${indent}${act}${sel}" data-path="${esc(fp)}" onclick="openFileViewer('${esc(fp)}')" oncontextmenu="feCtx(event,'${esc(fp)}','file')" draggable="true" ondragstart="feStartDrag(event,'${esc(fp)}')">${checkbox}<span class="arrow"></span><span class="icon">${iconHtml(getFileIcon(nm))}</span><span class="name">${esc(nm)}</span></div>`);
       }
     }
   })(vfs, '', 0);
