@@ -973,7 +973,10 @@ body { font-family: 'Inter', sans-serif; background: var(--bg-root); color: var(
   #toggleLeft, #toggleRight { width: 34px; height: 34px; font-size: 18px; border-color: var(--accent-orange); color: var(--accent-orange); background: var(--bg-panel); flex-shrink: 0; }
   .top-bar-center { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
   .top-bar-center::-webkit-scrollbar { display: none; }
-  .logo-text, .status-text, .loop-badge, #tokenBadge, .think-badge { display: none; }
+  .logo-text, .status-text, .loop-badge, #tokenBadge { display: none; }
+  /* Keep thinking control available on mobile (it was previously hidden). */
+  .think-badge { display: inline-flex; }
+  .think-select { max-width: 120px; }
 
   .msg { max-width: 100% !important; }
   .msg-assistant { max-width: 100% !important; }
