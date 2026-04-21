@@ -9833,7 +9833,7 @@ function renderChips() {
   const el = document.getElementById('inputChips');
   let html = '';
   html += invokedSkills.map(s =>
-    `<div class="input-chip" style="border-color:var(--accent-yellow);color:var(--accent-yellow)" title="Skill: ${esc(s.name)}"><span class="chip-name">${s.icon || 'i:bolt'} /${esc(s.name)}</span><button class="chip-close" onclick="removeInvokedSkill('${esc(s.id)}')">&times;</button></div>`
+    `<div class="input-chip" style="border-color:var(--accent-yellow);color:var(--accent-yellow)" title="Skill: ${esc(s.name)}"><span class="chip-name"><span style="display:inline-flex;align-items:center;gap:6px">${iconHtml(s.icon || 'i:bolt')}<span>/${esc(s.name)}</span></span></span><button class="chip-close" onclick="removeInvokedSkill('${esc(s.id)}')">&times;</button></div>`
   ).join('');
   html += attachedFiles.map(fp => {
     const name = fp.split('/').pop();
