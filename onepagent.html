@@ -9953,17 +9953,20 @@ function renderMd(el, t) {
   const displayText = normalizeTextForDisplay(t);
   el.dataset.fmt = fmt;
   const msgEl = el.closest('.msg-assistant');
-  try {
-    if (fmt === 'html') {
-      _renderHtmlFrame(el, t);
-      if (msgEl) { const fb = msgEl.querySelector('[data-role="fmt"]'); if (fb) { fb.style.display = ''; } }
-    } else if (typeof ptParseBlocks === 'function' && typeof ptLayout === 'function' && typeof ptRender === 'function') {
-      // Pretext-based rendering: parse markdown → measure via canvas → flow DOM
+
+  if (fmt === 'html') {
+    _renderHtmlFrame(el, t);
+    if (msgEl) { const fb = msgEl.querySelector('[data-role="fmt"]'); if (fb) { fb.style.display = ''; } }
+    el.appendChild(Object.assign(document.createElement('span'), { className: 'streaming-cursor' }));
+    return;
+  }
+
+  // Prefer Pretext renderer; if it fails, fall back to marked; only then fall back to plain text.
+  let rendered = false;
+
+  if (typeof ptParseBlocks === 'function' && typeof ptLayout === 'function' && typeof ptRender === 'function') {
+    try {
       const blocks = ptParseBlocks(displayText);
-      // Compute target layout width from the chat container, not from el.clientWidth —
-      // newly-created assistant bubbles use `width: fit-content` and would otherwise
-      // lock into a narrow column during streaming (especially for CJK text with no
-      // break opportunities).
       const chat = el.closest('.chat-messages');
       const bodyPad = 28; // .msg-body horizontal padding (10+14)*2 ~ 28
       const containerPad = 28; // .chat-messages padding
@@ -9971,16 +9974,25 @@ function renderMd(el, t) {
       const w = Math.max(320, Math.min(820 - bodyPad, avail || 600));
       const { layouts } = ptLayout(blocks, w);
       ptRender(el, layouts);
-    } else {
-      // Fallback: marked.parse + innerHTML
-      el.innerHTML = marked.parse(displayText, { breaks: true, gfm: true });
-      el.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
+      rendered = true;
+    } catch (e) {
+      console.warn('renderMd pretext failed; falling back to marked:', e);
     }
-  } catch (e) {
-    console.warn('renderMd error:', e);
-    // Safety fallback: render as plain text (do NOT HTML-escape; otherwise users see &quot; etc.)
-    el.textContent = t;
   }
+
+  if (!rendered) {
+    try {
+      el.innerHTML = marked.parse(displayText, { breaks: true, gfm: true });
+      try { el.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b)); } catch {}
+      rendered = true;
+    } catch (e) {
+      console.warn('renderMd marked failed; falling back to plain text:', e);
+      el.textContent = displayText;
+      el.style.whiteSpace = 'pre-wrap';
+      rendered = true;
+    }
+  }
+
   el.appendChild(Object.assign(document.createElement('span'), { className: 'streaming-cursor' }));
 }
 function _renderHtmlFrame(el, html) {
