@@ -57,20 +57,27 @@ function ptBase(ctx) {
   return { contentLeft: cl, mc: null, ml: null, mt: null, rails: rails };
 }
 
+// marked.lexer() HTML-escapes the `text` property of inline tokens (e.g. " → &quot;).
+// Since Pretext renders via textContent (not innerHTML), we must reverse this escaping.
+function ptUnesc(s) {
+  if (s.indexOf('&') === -1) return s;
+  return s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
+}
+
 function ptPlain(tks) {
   var s = '';
   for (var i = 0; i < tks.length; i++) {
     var t = tks[i];
     if (t.type === 'strong' || t.type === 'em' || t.type === 'del' || t.type === 'link') s += ptPlain(t.tokens || []);
     else if (t.type === 'br') s += '\n';
-    else s += t.text || t.raw || '';
+    else s += ptUnesc(t.text || t.raw || '');
   }
   return s;
 }
 
 function ptCollect(tokens, v) {
   var lines = [[]], cur = function() { return lines[lines.length - 1]; };
-  function mk(tx, m) { return tx ? { bm: 'normal', cn: ptCls(v, m), ew: 0, ft: ptFont(v, m), hr: m.href, tx: tx } : null; }
+  function mk(tx, m) { return tx ? { bm: 'normal', cn: ptCls(v, m), ew: 0, ft: ptFont(v, m), hr: m.href, tx: ptUnesc(tx) } : null; }
   function add(p) {
     if (!p) return;
     var l = cur(), pr = l.length ? l[l.length - 1] : null;
@@ -86,9 +93,9 @@ function ptCollect(tokens, v) {
         case 'strong': w(t.tokens || [], Object.assign({}, m, { bold: true })); break;
         case 'em': w(t.tokens || [], Object.assign({}, m, { italic: true })); break;
         case 'del': w(t.tokens || [], Object.assign({}, m, { strike: true })); break;
-        case 'codespan': if (t.text) add({ bm: 'normal', cn: 'pt-frag pt-frag-code', ew: PT_INLINE_CODE_EXTRA, ft: PT_CODE_FONT, hr: null, tx: t.text }); break;
+        case 'codespan': if (t.text) add({ bm: 'normal', cn: 'pt-frag pt-frag-code', ew: PT_INLINE_CODE_EXTRA, ft: PT_CODE_FONT, hr: null, tx: ptUnesc(t.text) }); break;
         case 'link': w(t.tokens || [], Object.assign({}, m, { href: t.href })); break;
-        case 'image': add({ bm: 'never', cn: 'pt-frag pt-frag-chip', ew: PT_IMAGE_EXTRA, ft: PT_IMAGE_FONT, hr: null, tx: t.text || t.href || 'image' }); break;
+        case 'image': add({ bm: 'never', cn: 'pt-frag pt-frag-chip', ew: PT_IMAGE_EXTRA, ft: PT_IMAGE_FONT, hr: null, tx: ptUnesc(t.text || t.href || 'image') }); break;
         case 'br': lines.push([]); break;
         case 'checkbox': add(mk(t.checked ? '[x] ' : '[ ] ', m)); break;
         case 'html': add(mk(t.text, m)); break;
