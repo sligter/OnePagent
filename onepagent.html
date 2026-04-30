@@ -2884,13 +2884,52 @@ function buildProviderApiUrl(pathOrUrl) {
   if (/\/v\d+$/i.test(ep) && /^\/v\d+\//i.test(path)) return ep.replace(/\/v\d+$/i, '') + path;
   return ep + path;
 }
+function isAbortError(e) {
+  return e?.name === 'AbortError';
+}
+function isRetryableStatus(status) {
+  return status === 408 || status === 409 || status === 425 || status === 429 || (status >= 500 && status <= 599);
+}
+async function waitForRetryDelay(ms, signal) {
+  if (!ms || ms <= 0) return;
+  await new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    if (signal) {
+      const onAbort = () => { clearTimeout(timer); reject(signal.reason || new DOMException('Aborted', 'AbortError')); };
+      if (signal.aborted) onAbort();
+      else signal.addEventListener('abort', onAbort, { once: true });
+    }
+  });
+}
+async function fetchWithRetry(url, options = {}, retryOptions = {}) {
+  const retries = Math.max(0, Number(retryOptions.retries ?? 5) || 0);
+  const baseDelay = Math.max(0, Number(retryOptions.baseDelay ?? 500) || 0);
+  const maxDelay = Math.max(baseDelay, Number(retryOptions.maxDelay ?? 8000) || 8000);
+  const signal = options.signal;
+  let lastError;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const resp = await fetch(url, options);
+      if (!isRetryableStatus(resp.status) || attempt >= retries) return resp;
+      lastError = new Error(`HTTP ${resp.status}`);
+      try { await resp.arrayBuffer(); } catch {}
+    } catch (e) {
+      if (isAbortError(e) || attempt >= retries) throw e;
+      lastError = e;
+    }
+    const jitter = 0.8 + Math.random() * 0.4;
+    const delay = Math.min(maxDelay, baseDelay * Math.pow(2, attempt)) * jitter;
+    await waitForRetryDelay(delay, signal);
+  }
+  throw lastError || new Error('Network request failed');
+}
 
 // ── Model list fetching ─────────────────────────────────────────
 async function fetchModelList() {
   const ep = (_keys?.api_endpoint || CFG.api_endpoint || '').replace(/\/+$/, '');
   const url = ep + '/v1/models';
   try {
-    const resp = await fetch(url, { headers: getAuthHeaders() });
+    const resp = await fetchWithRetry(url, { headers: getAuthHeaders() });
     if (!resp.ok) return [];
     const data = await resp.json();
     let models = (data.data || []).map(m => m.id);
@@ -3852,6 +3891,8 @@ const SESSION_ID = 'sess_' + Math.random().toString(36).slice(2, 10); // Per-tab
 // ═══════════════════════════════════════════════════════════════════
 let pyodideInstance = null;
 let pyodideLoading = false;
+const PYODIDE_PRELOAD_PACKAGES = ['micropip', 'numpy', 'pandas', 'lxml'];
+const PYODIDE_MICROPIP_PRELOAD_PACKAGES = ['python-pptx'];
 
 async function ensurePyodide() {
   if (pyodideInstance) return pyodideInstance;
@@ -3860,7 +3901,10 @@ async function ensurePyodide() {
   appendSystemMsg('Loading Python runtime (Pyodide WASM)...');
   try {
     pyodideInstance = await loadPyodide();
-    await pyodideInstance.loadPackage('micropip');
+    await pyodideInstance.loadPackage(PYODIDE_PRELOAD_PACKAGES);
+    for (const pkg of PYODIDE_MICROPIP_PRELOAD_PACKAGES) {
+      await pyodideInstance.runPythonAsync(`import micropip; await micropip.install("${pkg}")`);
+    }
     pyodideLoading = false;
     appendSystemMsg('Python runtime ready (Pyodide).');
     return pyodideInstance;
@@ -4392,10 +4436,10 @@ def _patched_rmdir(path):
     return _jsfs.rmdir(mapped)
 
 
-def _patched_stat(path):
+def _patched_stat(path, *args, **kwargs):
     mapped = _norm_workspace_path(path)
     if _is_native_path(mapped):
-        return _orig_stat(mapped)
+        return _orig_stat(mapped, *args, **kwargs)
     st = _js_stat(mapped)
     if not st:
         raise FileNotFoundError(mapped)
@@ -4478,8 +4522,8 @@ class WorkspacePath:
         return _patched_makedirs(self._path, mode=mode, exist_ok=exist_ok) if parents else _patched_mkdir(self._path, mode=mode)
     def unlink(self):
         return _patched_unlink(self._path)
-    def stat(self):
-        return _patched_stat(self._path)
+    def stat(self, *args, **kwargs):
+        return _patched_stat(self._path, *args, **kwargs)
     @classmethod
     def cwd(cls):
         return cls(_workspace_cwd)
@@ -7928,7 +7972,7 @@ async function memExtractAfterTurn({ userText, assistantContent, loopCount: lc, 
         stream: false
       };
     }
-    const resp = await fetch(getLLMUrl(), { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(body) });
+    const resp = await fetchWithRetry(getLLMUrl(), { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(body) });
     if (!resp.ok) return;
     const data = await resp.json();
     let raw = '';
@@ -9746,7 +9790,7 @@ async function compactMemory() {
   let summary;
   try {
     summaryBody.stream = false;
-    const resp = await fetch(getLLMUrl(), { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(summaryBody) });
+    const resp = await fetchWithRetry(getLLMUrl(), { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(summaryBody) });
     if (resp.ok) {
       const data = await resp.json();
       totalTokens += extractUsageTotal(data.usage);
@@ -9902,7 +9946,7 @@ async function generateMediaPromptWithAI(userText, kind, headId = activeEntryId)
     const body = PROVIDER === 'anthropic_compat'
       ? { model: API_MODEL, max_tokens: 900, system, messages: [{ role: 'user', content: request }] }
       : { model: API_MODEL, stream: false, messages: [{ role: 'system', content: system }, { role: 'user', content: request }] };
-    const resp = await fetch(getLLMUrl(), { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(body), signal: abortCtrl?.signal });
+    const resp = await fetchWithRetry(getLLMUrl(), { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(body), signal: abortCtrl?.signal });
     if (!resp.ok) return fallback;
     const data = await resp.json();
     const text = PROVIDER === 'anthropic_compat'
@@ -10246,7 +10290,7 @@ async function _runAgentLoop(userText, options = {}) {
       msgEl.dataset.tokenBase = String(tokenBase);
       msgEl.dataset.loopBase = String(loopBase);
       let resp;
-      try { resp = await fetch(getLLMUrl(), { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(body), signal: abortCtrl.signal }); }
+      try { resp = await fetchWithRetry(getLLMUrl(), { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(body), signal: abortCtrl.signal }); }
       catch (e) { msgEl.remove(); throw e; }
       if (!resp.ok) { msgEl.remove(); appendErrorBubble(`API Error (${resp.status}): ${(await resp.text()).slice(0, 300)}`, { userText, promptIndex, promptEntryId, tokenBase, loopBase }); break; }
       const reader = resp.body.getReader();
@@ -11183,7 +11227,7 @@ function _dataUrlToBytes(dataUrl) {
   return { bytes, mime: m[1] || '' };
 }
 async function _fetchMediaBytes(url) {
-  const resp = await fetch(url);
+  const resp = await fetchWithRetry(url);
   if (!resp.ok) throw new Error('Failed to fetch generated media: HTTP ' + resp.status);
   return { bytes: new Uint8Array(await resp.arrayBuffer()), mime: resp.headers.get('content-type') || '' };
 }
@@ -11279,7 +11323,7 @@ async function pollMediaGeneration(job, mode) {
   const url = buildProviderApiUrl(p.videoStatusEndpoint.replace('{id}', encodeURIComponent(id)));
   for (let i = 0; i < 60; i++) {
     await new Promise(r => setTimeout(r, 2000));
-    const resp = await fetch(url, { headers: getProviderAuthHeaders({ json: true, respectServiceWorker: false }) });
+    const resp = await fetchWithRetry(url, { headers: getProviderAuthHeaders({ json: true, respectServiceWorker: false }) });
     if (!resp.ok) throw new Error('Video status failed: HTTP ' + resp.status);
     const data = await resp.json();
     const status = String(data.status || data.state || '').toLowerCase();
@@ -11299,7 +11343,7 @@ async function runMediaGeneration(mode, prompt, filePaths, options = {}) {
   let resp, errorText = '';
   for (const variant of getMediaGenerationBodyVariants(mode)) {
     const body = buildMediaGenerationBody(mode, prompt, model, images, variant);
-    resp = await fetch(url, { method: 'POST', headers: getProviderAuthHeaders({ json: true, respectServiceWorker: false }), body: JSON.stringify(body), signal: abortCtrl?.signal });
+    resp = await fetchWithRetry(url, { method: 'POST', headers: getProviderAuthHeaders({ json: true, respectServiceWorker: false }), body: JSON.stringify(body), signal: abortCtrl?.signal });
     if (resp.ok) break;
     errorText = await resp.text();
     const msg = errorText.toLowerCase();
