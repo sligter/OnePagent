@@ -784,7 +784,7 @@ body { font-family: 'Inter', sans-serif; background: var(--bg-root); color: var(
 .chat-input-area { padding: clamp(6px, 0.8vw, 10px) clamp(8px, 1.2vw, 14px); display: flex; gap: clamp(6px, 0.8vw, 8px); align-items: flex-end; }
 .chat-input-area textarea { flex: 1; background: var(--bg-root); border: 1px solid var(--border); color: var(--text-primary); font-family: 'Inter', sans-serif; font-size: clamp(13px, 1.1vw, 14px); padding: clamp(7px, 0.9vw, 9px) clamp(10px, 1.2vw, 12px); border-radius: 8px; resize: none; min-height: 40px; max-height: 180px; line-height: 1.5; outline: none; }
 .chat-input-area textarea:focus { border-color: var(--accent-orange); }
-.chat-input-area.dragover textarea { border-color: var(--accent-green); box-shadow: 0 0 0 2px rgba(0,255,136,0.15); }
+.chat-input-area.dragover textarea, .chat-input-wrap:has(.chat-input-area.dragover) textarea { border-color: var(--accent-green); box-shadow: 0 0 0 2px rgba(0,255,136,0.15); }
 .attach-btn { width: 40px; height: 40px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; position: relative; }
 .attach-btn:hover { border-color: var(--accent-cyan); color: var(--accent-cyan); }
 .attach-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
@@ -792,6 +792,22 @@ body { font-family: 'Inter', sans-serif; background: var(--bg-root); color: var(
 .send-btn:hover { filter: brightness(1.1); transform: scale(1.05); }
 .send-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
 .send-btn.stop { background: var(--accent-pink); }
+.media-mode-select, .media-model-select { height: 40px; max-width: 150px; background: var(--bg-root); border: 1px solid var(--border); border-radius: 8px; color: var(--text-secondary); font: 11px 'JetBrains Mono', monospace; padding: 0 8px; outline: none; flex-shrink: 0; }
+.media-model-select { max-width: 180px; display: none; color: var(--accent-cyan); }
+.media-mode-select.active { border-color: var(--accent-cyan); color: var(--accent-cyan); }
+.media-render-progress { width: min(100%, 760px); padding: 14px; border: 1px solid var(--border); border-radius: 8px; background: linear-gradient(135deg, rgba(255,111,66,0.08), rgba(0,221,255,0.06)); margin: 6px 10px 10px; box-sizing: border-box; }
+.media-render-visual { height: 180px; border-radius: 6px; background: radial-gradient(circle at 25% 35%, rgba(255,255,255,0.18), transparent 18%), radial-gradient(circle at 70% 45%, rgba(0,221,255,0.18), transparent 20%), linear-gradient(120deg, rgba(255,111,66,0.16), rgba(157,78,221,0.14), rgba(0,221,255,0.12)); background-size: 160% 160%; animation: mediaShimmer 2.6s ease-in-out infinite; position: relative; overflow: hidden; }
+.media-render-visual::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.16), transparent); transform: translateX(-100%); animation: mediaSweep 1.8s ease-in-out infinite; }
+.media-render-title { display: flex; align-items: center; gap: 6px; font: 11px 'JetBrains Mono', monospace; color: var(--accent-orange); margin: 10px 0 0; }
+@keyframes mediaShimmer { 0%,100%{background-position:0% 50%}50%{background-position:100% 50%} }
+@keyframes mediaSweep { 0%{transform:translateX(-100%)}60%,100%{transform:translateX(100%)} }
+.media-result-meta { font: 11px 'JetBrains Mono', monospace; color: var(--text-dim); margin-bottom: 8px; }
+.media-result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; max-width: min(100%, 860px); }
+.media-result-card { background: var(--bg-root); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.media-result-preview { min-height: 120px; display: flex; align-items: center; justify-content: center; background: var(--overlay-soft); }
+.media-result-preview img, .media-result-preview video { max-width: 100%; max-height: 360px; display: block; }
+.media-result-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 9px; font: 11px 'JetBrains Mono', monospace; color: var(--text-secondary); border-top: 1px solid var(--border); }
+.media-result-actions button { flex-shrink: 0; }
 
 /* @ autocomplete dropdown */
 .at-dropdown { position: absolute; bottom: 100%; left: 0; right: 0; max-height: 220px; overflow-y: auto; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 -4px 20px rgba(0,0,0,0.3); display: none; z-index: 50; margin-bottom: 4px; }
@@ -839,6 +855,13 @@ body { font-family: 'Inter', sans-serif; background: var(--bg-root); color: var(
 /* File viewer overlay */
 .file-viewer-overlay { position: fixed; top: 0; right: 0; width: var(--fv-w, 420px); height: 100vh; background: var(--bg-panel); border-left: 1px solid var(--border); z-index: 100; display: none; flex-direction: column; box-shadow: -4px 0 20px rgba(0,0,0,0.4); }
 .file-viewer-overlay.show { display: flex; }
+.file-viewer-overlay.image-mode { inset: 0; width: 100vw; height: 100vh; background: rgba(5,6,14,0.96); border-left: none; z-index: 260; }
+.file-viewer-overlay.image-mode .fv-resize-handle { display: none; }
+.file-viewer-overlay.image-mode .fv-content { padding: 0; overflow: hidden; }
+.image-zoom-stage { width: 100%; height: 100%; overflow: auto; display: flex; align-items: center; justify-content: center; cursor: zoom-in; }
+.image-zoom-stage.pannable { align-items: flex-start; justify-content: flex-start; cursor: grab; }
+.image-zoom-stage.panning { cursor: grabbing; }
+.image-zoom-img { max-width: none; max-height: none; border-radius: 6px; box-shadow: 0 8px 36px rgba(0,0,0,0.55); transform-origin: center center; user-select: none; }
 .fv-resize-handle { position: absolute; top: 0; left: -3px; width: 6px; height: 100%; cursor: col-resize; z-index: 2; }
 .fv-resize-handle::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 2px; height: 32px; border-radius: 1px; background: var(--text-dim); opacity: 0; transition: opacity 0.15s; }
 .fv-resize-handle:hover::after, .fv-resize-handle.dragging::after { opacity: 0.6; background: var(--accent-orange); }
@@ -1547,6 +1570,25 @@ document.addEventListener('DOMContentLoaded', function() {
       <textarea id="setModels" placeholder="claude-sonnet-4-20250514&#10;claude-opus-4-20250514" style="min-height:80px"></textarea>
       <label><span data-i18n="settings.defaultModel">Default Model</span> <span style="text-transform:none;color:var(--text-dim)" data-i18n="settings.defaultModelHint">(optional; first model used if empty)</span></label>
       <input type="text" id="setDefaultModel" placeholder="claude-sonnet-4-20250514">
+      <div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin:10px 0 12px;background:var(--bg-root)">
+        <label style="margin-top:0"><span data-i18n="settings.mediaModels">Generation Models</span> <span style="text-transform:none;color:var(--text-dim)" data-i18n="settings.mediaModelsHint">(one per line; optional)</span></label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div><label data-i18n="settings.imageModels">Image models</label><textarea id="setImageModels" placeholder="gpt-image-1&#10;dall-e-3" style="min-height:70px"></textarea></div>
+          <div><label data-i18n="settings.videoModels">Video models</label><textarea id="setVideoModels" placeholder="sora-2&#10;video-generation-model" style="min-height:70px"></textarea></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div><label data-i18n="settings.defaultImageModel">Default image model</label><input type="text" id="setDefaultImageModel" placeholder="gpt-image-1"></div>
+          <div><label data-i18n="settings.defaultVideoModel">Default video model</label><input type="text" id="setDefaultVideoModel" placeholder="sora-2"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div><label data-i18n="settings.imageGenerationEndpoint">Text-to-image endpoint</label><input type="text" id="setImageGenerationEndpoint" placeholder="/v1/images/generations"></div>
+          <div><label data-i18n="settings.imageEditEndpoint">Image-to-image endpoint</label><input type="text" id="setImageEditEndpoint" placeholder="/v1/images/edits"></div>
+        </div>
+        <label data-i18n="settings.videoGenerationEndpoint">Video generation endpoint</label>
+        <input type="text" id="setVideoGenerationEndpoint" placeholder="/v1/videos">
+        <label><span data-i18n="settings.videoStatusEndpoint">Video status endpoint</span> <span style="text-transform:none;color:var(--text-dim)" data-i18n="settings.videoStatusEndpointHint">(optional; use {id})</span></label>
+        <input type="text" id="setVideoStatusEndpoint" placeholder="/v1/videos/{id}">
+      </div>
       <label style="display:flex;align-items:center;justify-content:space-between">
         <span><span data-i18n="settings.contextLengths">Model Context Lengths</span> <span style="text-transform:none;color:var(--text-dim)" data-i18n="settings.contextLengthsHint">(tokens per model)</span></span>
         <button type="button" class="modal-btn secondary" onclick="syncModelContextsFromSelected()" style="padding:2px 10px;font-size:10px">&#x21A1; <span data-i18n="settings.mcImport">Import Selected</span></button>
@@ -1864,6 +1906,20 @@ const I18N = {
     // Input
     'input.placeholder': 'Type message...',
     'input.attach': 'Attach files',
+    'media.mode.chat': 'Chat',
+    'media.mode.textImage': 'Text→Image',
+    'media.mode.imageImage': 'Image→Image',
+    'media.mode.textVideo': 'Text→Video',
+    'media.mode.imageVideo': 'Image→Video',
+    'media.generating': 'Generating media...',
+    'media.render.prepare': 'Preparing prompt',
+    'media.render.request': 'Calling generation model',
+    'media.render.paint': 'Rendering pixels',
+    'media.render.save': 'Saving to workspace',
+    'media.needPrompt': 'Enter a prompt for generation.',
+    'media.needImage': 'Attach at least one image for this mode.',
+    'media.noModel': 'Configure a generation model in Settings.',
+    'media.saved': 'Saved generated media:',
     // Memory panel
     'mem.messages': 'Messages',
     'mem.tokens': 'Tokens',
@@ -1906,6 +1962,17 @@ const I18N = {
     'settings.selectedModelsHint': '(one per line; edit freely)',
     'settings.defaultModel': 'Default Model',
     'settings.defaultModelHint': '(optional; first model used if empty)',
+    'settings.mediaModels': 'Generation Models',
+    'settings.mediaModelsHint': '(one per line; optional)',
+    'settings.imageModels': 'Image models',
+    'settings.videoModels': 'Video models',
+    'settings.defaultImageModel': 'Default image model',
+    'settings.defaultVideoModel': 'Default video model',
+    'settings.imageGenerationEndpoint': 'Text-to-image endpoint',
+    'settings.imageEditEndpoint': 'Image-to-image endpoint',
+    'settings.videoGenerationEndpoint': 'Video generation endpoint',
+    'settings.videoStatusEndpoint': 'Video status endpoint',
+    'settings.videoStatusEndpointHint': '(optional; use {id})',
     'settings.contextLengths': 'Model Context Lengths',
     'settings.contextLengthsHint': '(tokens per model)',
     'settings.mcImport': 'Import Selected',
@@ -2125,6 +2192,20 @@ const I18N = {
     // Input
     'input.placeholder': '输入消息…',
     'input.attach': '附加文件',
+    'media.mode.chat': '聊天',
+    'media.mode.textImage': '文生图',
+    'media.mode.imageImage': '图生图',
+    'media.mode.textVideo': '文生视频',
+    'media.mode.imageVideo': '图生视频',
+    'media.generating': '正在生成媒体…',
+    'media.render.prepare': '整理提示词',
+    'media.render.request': '调用生成模型',
+    'media.render.paint': '渲染画面',
+    'media.render.save': '保存到工作区',
+    'media.needPrompt': '请输入生成提示词。',
+    'media.needImage': '此模式至少需要附加一张图片。',
+    'media.noModel': '请先在设置中配置生成模型。',
+    'media.saved': '已保存生成媒体：',
     // Memory panel
     'mem.messages': '消息',
     'mem.tokens': '令牌',
@@ -2172,6 +2253,17 @@ const I18N = {
     'settings.selectedModelsHint': '（每行一个；可自由编辑）',
     'settings.defaultModel': '默认模型',
     'settings.defaultModelHint': '（可选；留空则使用首个模型）',
+    'settings.mediaModels': '生成模型',
+    'settings.mediaModelsHint': '（每行一个；可选）',
+    'settings.imageModels': '图像模型',
+    'settings.videoModels': '视频模型',
+    'settings.defaultImageModel': '默认图像模型',
+    'settings.defaultVideoModel': '默认视频模型',
+    'settings.imageGenerationEndpoint': '文生图端点',
+    'settings.imageEditEndpoint': '图生图端点',
+    'settings.videoGenerationEndpoint': '视频生成端点',
+    'settings.videoStatusEndpoint': '视频状态端点',
+    'settings.videoStatusEndpointHint': '（可选；使用 {id}）',
     'settings.contextLengths': '模型上下文长度',
     'settings.contextLengthsHint': '（每个模型的 Token 数）',
     'settings.mcImport': '导入已选模型',
@@ -2459,6 +2551,13 @@ window.makeCodeActionBtn = function(kind, wrap) {
 // ═══════════════════════════════════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════════════════════════════════
+const BINARY_EXTS = new Set(['pptx','xlsx','xls','docx','doc','pdf','png','jpg','jpeg','gif','bmp','ico','webp','svg','zip','gz','tar','whl','pyc','so','dll','exe','bin','dat','sqlite','db','mp3','mp4','wav','ogg','flac','aac','m4a','opus','webm','mov','avi','mkv','ttf','otf','woff','woff2','rar','7z','bz2','xz','iso','dmg','deb','rpm','jar','class','o','a','lib','obj','psd','ai','sketch','fig','raw','tiff','heic','heif','apk','ipa']);
+// Any file above this threshold is treated as binary regardless of extension
+// — avoids loading multi-MB "text" strings that freeze the renderer.
+const MAX_TEXT_UPLOAD_BYTES = 2 * 1024 * 1024;
+const MAX_TEXT_PREVIEW_BYTES = 1 * 1024 * 1024;
+const IMAGE_EXTS = new Set(['png','jpg','jpeg','gif','bmp','webp','svg','ico']);
+const OFFICE_EXTS = new Set(['pptx','xlsx','xls','docx','doc']);
 const CFG = window.__DIFY_PLUGIN_CONFIG__ || {};
 const SETTINGS_KEY = 'ba_settings';
 function loadSettings() {
@@ -2565,6 +2664,74 @@ function populateProviderSelect() {
   sel.innerHTML = ids.map(id => `<option value="${esc(id)}"${id === active ? ' selected' : ''}>${esc(providers[id].name || id)}</option>`).join('');
 }
 
+const MEDIA_MODE_KEY = 'ba_media_generation_mode';
+const MEDIA_MODEL_KEY = 'ba_media_generation_models';
+const MEDIA_GENERATION_MODES = new Set(['chat', 'text_image', 'image_image', 'text_video', 'image_video']);
+let MEDIA_MODE = (() => {
+  try { const v = localStorage.getItem(MEDIA_MODE_KEY); if (MEDIA_GENERATION_MODES.has(v)) return v; } catch {}
+  return 'chat';
+})();
+let MEDIA_MODELS = (() => {
+  try { const raw = localStorage.getItem(MEDIA_MODEL_KEY); return raw ? JSON.parse(raw) : {}; } catch {}
+  return {};
+})();
+
+function isMediaGenerationMode(mode = MEDIA_MODE) { return mode && mode !== 'chat'; }
+function isVideoGenerationMode(mode = MEDIA_MODE) { return mode === 'text_video' || mode === 'image_video'; }
+function isImageInputGenerationMode(mode = MEDIA_MODE) { return mode === 'image_image' || mode === 'image_video'; }
+function getProviderMediaModels(kind) {
+  const p = ACTIVE_PROVIDER || {};
+  const key = kind === 'video' ? 'videoModels' : 'imageModels';
+  return Array.isArray(p[key]) ? p[key].filter(Boolean) : [];
+}
+function getDefaultMediaModel(kind, override = '') {
+  const p = ACTIVE_PROVIDER || {};
+  const stored = MEDIA_MODELS[(p.id || 'default') + ':' + kind];
+  const def = kind === 'video' ? p.defaultVideoModel : p.defaultImageModel;
+  const list = getProviderMediaModels(kind);
+  return override || stored || def || list[0] || '';
+}
+function setMediaGenerationMode(mode) {
+  if (!MEDIA_GENERATION_MODES.has(mode)) mode = 'chat';
+  MEDIA_MODE = mode;
+  try { localStorage.setItem(MEDIA_MODE_KEY, mode); } catch {}
+  populateMediaModelSelect();
+}
+function setMediaGenerationModel(model) {
+  const kind = isVideoGenerationMode() ? 'video' : 'image';
+  const providerId = (ACTIVE_PROVIDER && ACTIVE_PROVIDER.id) || 'default';
+  MEDIA_MODELS[providerId + ':' + kind] = model;
+  try { localStorage.setItem(MEDIA_MODEL_KEY, JSON.stringify(MEDIA_MODELS)); } catch {}
+}
+function initMediaGenerationControls() {
+  const modeSel = document.getElementById('mediaModeSelect');
+  if (modeSel) modeSel.value = MEDIA_MODE;
+  populateMediaModelSelect();
+}
+function populateMediaModelSelect() {
+  const modeSel = document.getElementById('mediaModeSelect');
+  const modelSel = document.getElementById('mediaModelSelect');
+  if (!modelSel) return;
+  if (modeSel) {
+    modeSel.value = MEDIA_MODE;
+    modeSel.classList.toggle('active', isMediaGenerationMode());
+  }
+  if (!isMediaGenerationMode()) {
+    modelSel.style.display = 'none';
+    modelSel.innerHTML = '';
+    return;
+  }
+  const kind = isVideoGenerationMode() ? 'video' : 'image';
+  const list = getProviderMediaModels(kind);
+  const current = getDefaultMediaModel(kind);
+  const options = list.length ? list.slice() : (current ? [current] : []);
+  if (current && !options.includes(current)) options.unshift(current);
+  modelSel.innerHTML = options.length
+    ? options.map(m => `<option value="${esc(m)}"${m === current ? ' selected' : ''}>${esc(m)}</option>`).join('')
+    : `<option value="">${esc(t('media.noModel'))}</option>`;
+  modelSel.style.display = '';
+}
+
 function populateModelSelectFromActiveProvider() {
   const modelSel = document.getElementById('modelSelect');
   if (!modelSel) return;
@@ -2574,6 +2741,7 @@ function populateModelSelectFromActiveProvider() {
   // Ensure current model is present
   if (API_MODEL && !list.includes(API_MODEL)) list.unshift(API_MODEL);
   modelSel.innerHTML = list.map(m => `<option value="${esc(m)}"${m === API_MODEL ? ' selected' : ''}>${esc(m)}</option>`).join('');
+  populateMediaModelSelect();
 }
 
 document.getElementById('providerSelect').addEventListener('change', e => {
@@ -2627,7 +2795,7 @@ self.addEventListener('fetch', e => {
   const apiBase = (cfg.api_endpoint || '').replace(/\/+$/, '');
   const u = new URL(e.request.url);
   // Intercept LLM API calls
-  if (u.pathname.includes('/v1/messages') || u.pathname.includes('/v1/chat/completions') || u.pathname.includes('/v1/models')) {
+  if (u.pathname.includes('/v1/messages') || u.pathname.includes('/v1/chat/completions') || u.pathname.includes('/v1/models') || u.pathname.includes('/v1/images/') || u.pathname.includes('/v1/videos/')) {
     e.respondWith((async () => {
       const h = new Headers(e.request.headers);
       const targetUrl = apiBase ? (apiBase + u.pathname + u.search) : e.request.url;
@@ -2691,8 +2859,13 @@ function isDeepSeekActiveProvider() {
 }
 
 function getAuthHeaders() {
-  const h = { 'Content-Type': 'application/json' };
-  if (!_swReady && _keys) {
+  return getProviderAuthHeaders({ json: true, respectServiceWorker: true });
+}
+function getProviderAuthHeaders(options = {}) {
+  const h = {};
+  if (options.json !== false) h['Content-Type'] = 'application/json';
+  const shouldAuth = !options.respectServiceWorker || !_swReady;
+  if (shouldAuth && _keys) {
     if (PROVIDER === 'anthropic_compat') {
       h['x-api-key'] = _keys.api_key;
       h['anthropic-version'] = '2023-06-01';
@@ -2702,6 +2875,14 @@ function getAuthHeaders() {
     }
   }
   return h;
+}
+function buildProviderApiUrl(pathOrUrl) {
+  const raw = String(pathOrUrl || '').trim();
+  if (/^https?:\/\//i.test(raw)) return raw;
+  const ep = (_keys?.api_endpoint || CFG.api_endpoint || '').replace(/\/+$/, '');
+  const path = raw.startsWith('/') ? raw : '/' + raw;
+  if (/\/v\d+$/i.test(ep) && /^\/v\d+\//i.test(path)) return ep.replace(/\/v\d+$/i, '') + path;
+  return ep + path;
 }
 
 // ── Model list fetching ─────────────────────────────────────────
@@ -2756,6 +2937,8 @@ Available tools:
 - PythonExec: Run Python code in-browser (Pyodide WASM). Python file APIs are bridged to the shared browser filesystem through a workspacefs layer, so normal paths like /src/main.py and /skills/my-skill/SKILL.md work directly without full filesystem sync. For libraries that require a native temp path, use workspacefs.materialize_to_tmp(...) and workspacefs.persist_tmp_file(...). Use micropip only for pure-Python packages. An internal helper module \`workspace_cli\` and a ready-to-run script at \`/__internal__/workspace_cli.py\` are also available for higher-level file operations.
 - JSExec: Run JavaScript in browser sandbox. Use vfsRead/vfsWrite for text files, vfsReadBinary/vfsWriteBinary for binary files, vfsStat for metadata, console.log() for output, fetch() for HTTP.
 - WebSearch: Search the web via Tavily AI. Returns titles, URLs and content snippets. Requires a Tavily API key set in the Web Search panel (right sidebar).
+- GenerateImage: Generate images from text, or edit/transform attached image paths. When the user asks to generate, draw, create, design, or edit an image, call GenerateImage directly in normal chat and omit the model field unless the user names a specific model; no mode switch is required. Do not answer with only a textual description of the image. Generated files are saved under /generations.
+- GenerateVideo: Generate videos from text, or animate/transform an attached image path. When the user asks to generate, create, animate, or edit a video, call GenerateVideo directly in normal chat and omit the model field unless the user names a specific model; no mode switch is required. Do not answer with only a textual description of the video. Generated files are saved under /generations.
 
 Filesystem rules:
 - Treat the browser filesystem as the single source of truth.
@@ -3400,6 +3583,7 @@ async function switchConversation(id, skipSave) {
   if (typeof renderTodos === 'function') renderTodos();
   if (data?.chatHTML) chatEl.innerHTML = data.chatHTML;
   else chatEl.innerHTML = '<div class="msg msg-system msg-placeholder"><div class="msg-body">Conversation loaded.</div></div>';
+  await hydrateMediaResultCards(chatEl);
   // Batch remount skills — single renderFileTree at the end
   for (const s of skills) { if (s.active) await mountSkillToVfs(s, true); }
   renderFileTree();
@@ -3685,14 +3869,6 @@ async function ensurePyodide() {
     throw new Error('Failed to load Pyodide: ' + e.message);
   }
 }
-
-const BINARY_EXTS = new Set(['pptx','xlsx','xls','docx','doc','pdf','png','jpg','jpeg','gif','bmp','ico','webp','svg','zip','gz','tar','whl','pyc','so','dll','exe','bin','dat','sqlite','db','mp3','mp4','wav','ogg','flac','aac','m4a','opus','webm','mov','avi','mkv','ttf','otf','woff','woff2','rar','7z','bz2','xz','iso','dmg','deb','rpm','jar','class','o','a','lib','obj','psd','ai','sketch','fig','raw','tiff','heic','heif','apk','ipa']);
-// Any file above this threshold is treated as binary regardless of extension
-// — avoids loading multi-MB "text" strings that freeze the renderer.
-const MAX_TEXT_UPLOAD_BYTES = 2 * 1024 * 1024;
-const MAX_TEXT_PREVIEW_BYTES = 1 * 1024 * 1024;
-const IMAGE_EXTS = new Set(['png','jpg','jpeg','gif','bmp','webp','svg','ico']);
-const OFFICE_EXTS = new Set(['pptx','xlsx','xls','docx','doc']);
 
 function vfsStat(path) {
   const node = vfsResolve(path);
@@ -5816,6 +5992,14 @@ function _applyProviderProfileToSettingsModal(p) {
   const models = Array.isArray(p.models) ? p.models : [];
   document.getElementById('setModels').value = models.join('\n');
   document.getElementById('setDefaultModel').value = p.defaultModel || '';
+  document.getElementById('setImageModels').value = (Array.isArray(p.imageModels) ? p.imageModels : []).join('\n');
+  document.getElementById('setVideoModels').value = (Array.isArray(p.videoModels) ? p.videoModels : []).join('\n');
+  document.getElementById('setDefaultImageModel').value = p.defaultImageModel || '';
+  document.getElementById('setDefaultVideoModel').value = p.defaultVideoModel || '';
+  document.getElementById('setImageGenerationEndpoint').value = p.imageGenerationEndpoint || '';
+  document.getElementById('setImageEditEndpoint').value = p.imageEditEndpoint || '';
+  document.getElementById('setVideoGenerationEndpoint').value = p.videoGenerationEndpoint || '';
+  document.getElementById('setVideoStatusEndpoint').value = p.videoStatusEndpoint || '';
   const ctxs = p.model_contexts || {};
   renderModelContextsList(ctxs);
 }
@@ -5840,6 +6024,14 @@ function newProviderProfile() {
     apiKey: '',
     models: [],
     defaultModel: '',
+    imageModels: [],
+    videoModels: [],
+    defaultImageModel: '',
+    defaultVideoModel: '',
+    imageGenerationEndpoint: '',
+    imageEditEndpoint: '',
+    videoGenerationEndpoint: '',
+    videoStatusEndpoint: '',
     model_contexts: {}
   };
   _saveProviders({ providers });
@@ -6135,10 +6327,18 @@ async function saveSettings() {
   const apiKey = document.getElementById('setApiKey').value.trim();
   const models = document.getElementById('setModels').value.split(/[\n,]/).map(m => m.trim()).filter(Boolean);
   const defaultModel = document.getElementById('setDefaultModel').value.trim();
+  const imageModels = document.getElementById('setImageModels').value.split(/[\n,]/).map(m => m.trim()).filter(Boolean);
+  const videoModels = document.getElementById('setVideoModels').value.split(/[\n,]/).map(m => m.trim()).filter(Boolean);
+  const defaultImageModel = document.getElementById('setDefaultImageModel').value.trim();
+  const defaultVideoModel = document.getElementById('setDefaultVideoModel').value.trim();
+  const imageGenerationEndpoint = document.getElementById('setImageGenerationEndpoint').value.trim();
+  const imageEditEndpoint = document.getElementById('setImageEditEndpoint').value.trim();
+  const videoGenerationEndpoint = document.getElementById('setVideoGenerationEndpoint').value.trim();
+  const videoStatusEndpoint = document.getElementById('setVideoStatusEndpoint').value.trim();
   const model_contexts = readModelContextsFromUI();
 
   const providers = getProvidersMap();
-  providers[profId] = { id: profId, name, type, endpoint, apiKey, models, defaultModel: defaultModel || models[0] || '', model_contexts };
+  providers[profId] = { id: profId, name, type, endpoint, apiKey, models, defaultModel: defaultModel || models[0] || '', imageModels, videoModels, defaultImageModel: defaultImageModel || imageModels[0] || '', defaultVideoModel: defaultVideoModel || videoModels[0] || '', imageGenerationEndpoint, imageEditEndpoint, videoGenerationEndpoint, videoStatusEndpoint, model_contexts };
   _saveProviders({ providers });
   setActiveProviderId(profId);
   ACTIVE_PROVIDER = providers[profId];
@@ -6182,6 +6382,7 @@ async function saveSettings() {
   // Refresh top bar selects
   populateProviderSelect();
   populateModelSelectFromActiveProvider();
+  populateMediaModelSelect();
   applyModelContextLimit();
   updateWsStatus();
 
@@ -8041,6 +8242,8 @@ const BASE_TOOLS_ANTHROPIC = [
   { name: 'JSExec', description: 'Execute JavaScript code in an in-browser sandbox. Has direct access to the virtual filesystem via vfsRead/vfsWrite for text, async vfsReadBinary/vfsWriteBinary for binary data (use await), vfsStat for metadata, plus vfsGlob/vfsGrep. Can use fetch() for HTTP requests and console.log for output.', input_schema: { type: 'object', properties: { code: { type: 'string', description: 'JavaScript code to execute. Wrap top-level awaits by returning an async IIFE or a Promise. Available APIs: vfsRead(path), vfsWrite(path,content), await vfsReadBinary(path), await vfsWriteBinary(path,bytes), vfsStat(path), vfsGlob(pattern), vfsGrep(pattern,path), fetch().' } }, required: ['code'] } },
   { name: 'WebSearch', description: 'Search the web using Tavily AI. Returns titles, URLs, and content snippets for relevant results. Requires a Tavily API key configured in the Web Search panel on the right sidebar.', input_schema: { type: 'object', properties: { query: { type: 'string', description: 'Search query' }, search_depth: { type: 'string', enum: ['basic', 'advanced'], description: 'Search depth: basic (fast) or advanced (thorough). Defaults to panel setting.' }, max_results: { type: 'integer', description: 'Maximum results to return (1-10). Defaults to panel setting.' }, include_domains: { type: 'array', items: { type: 'string' }, description: 'Restrict results to these domains (optional).' }, exclude_domains: { type: 'array', items: { type: 'string' }, description: 'Exclude these domains from results (optional).' } }, required: ['query'] } },
   { name: 'Fetch', description: 'Fetch a webpage by URL and return readable page content. Useful for retrieving the contents of a specific web page.', input_schema: { type: 'object', properties: { url: { type: 'string', description: 'HTTP or HTTPS URL to fetch' }, max_chars: { type: 'integer', description: 'Maximum number of characters to return from the cleaned page text. Default 12000.' } }, required: ['url'] } },
+  { name: 'GenerateImage', description: 'Generate an image from a text prompt, or edit/transform attached images when input_image_paths is provided. Use this directly in normal chat when the user asks for image generation; no special mode switch is required. The prompt must be a complete, polished generation prompt synthesized from the user\'s latest request plus relevant conversation history, not just a verbatim copy of the last message. Saves outputs under /generations and returns generated file paths.', input_schema: { type: 'object', properties: { prompt: { type: 'string', description: 'Complete image prompt or edit instruction, incorporating relevant user requirements and conversation context.' }, input_image_paths: { type: 'array', items: { type: 'string' }, description: 'Optional VFS image paths to use for image-to-image editing or variation.' }, model: { type: 'string', description: 'Optional image model override. Defaults to the provider default image model.' } }, required: ['prompt'] } },
+  { name: 'GenerateVideo', description: 'Generate a video from a text prompt, or from an attached image plus prompt when input_image_paths is provided. Use this directly in normal chat when the user asks for video generation; no special mode switch is required. The prompt must be a complete, polished generation prompt synthesized from the user\'s latest request plus relevant conversation history, not just a verbatim copy of the last message. Saves outputs under /generations and returns generated file paths.', input_schema: { type: 'object', properties: { prompt: { type: 'string', description: 'Complete video prompt or animation instruction, incorporating relevant user requirements and conversation context.' }, input_image_paths: { type: 'array', items: { type: 'string' }, description: 'Optional VFS image paths; the first valid image is used for image-to-video.' }, model: { type: 'string', description: 'Optional video model override. Defaults to the provider default video model.' } }, required: ['prompt'] } },
   { name: 'TodoWrite', description: 'Maintain a user-visible task list for the current session. Use this proactively on multi-step work so the user can track progress. Each todo has: content (imperative form, e.g. "Run tests"), activeForm (present continuous, e.g. "Running tests"), status (pending | in_progress | completed). Exactly one task should be in_progress at a time. Update the full list on every change; this tool overwrites the prior list.', input_schema: { type: 'object', properties: { todos: { type: 'array', items: { type: 'object', properties: { content: { type: 'string', description: 'Imperative description of the task.' }, activeForm: { type: 'string', description: 'Present-continuous description shown while in progress.' }, status: { type: 'string', enum: ['pending', 'in_progress', 'completed'], description: 'Task status.' } }, required: ['content', 'activeForm', 'status'] } } }, required: ['todos'] } },
   { name: 'ExitPlanMode', description: 'Call this ONLY while Plan Mode is active and your plan is ready for user approval. Pass the full plan as Markdown. The user gets an Approve/Reject dialog. If approved, Plan Mode exits and you may execute write tools on the next turn. If rejected, you receive the user\'s feedback and must revise the plan while staying in Plan Mode.', input_schema: { type: 'object', properties: { plan: { type: 'string', description: 'Complete, reviewable plan in Markdown.' } }, required: ['plan'] } },
 ];
@@ -8191,7 +8394,7 @@ function rebuildToolDefs(headId = activeEntryId) {
 }
 
 function renderToolsGrid() {
-  const icons = { Read: 'i:book', Write: 'i:file-pen', Edit: 'i:pencil', Glob: 'i:search', Grep: 'i:search', Bash: 'i:terminal', PythonExec: 'i:terminal', JSExec: 'i:terminal', WebSearch: 'i:globe', Fetch: 'i:antenna' };
+  const icons = { Read: 'i:book', Write: 'i:file-pen', Edit: 'i:pencil', Glob: 'i:search', Grep: 'i:search', Bash: 'i:terminal', PythonExec: 'i:terminal', JSExec: 'i:terminal', WebSearch: 'i:globe', Fetch: 'i:antenna', GenerateImage: 'i:image', GenerateVideo: 'i:film' };
   const el = document.getElementById('toolsGrid');
   el.innerHTML = allToolsAnthropic.map(t => {
     const ic = icons[t.name] || 'i:wrench';
@@ -8227,6 +8430,8 @@ async function executeTool(name, input) {
       case 'JSExec': return await toolJSExec(input);
       case 'WebSearch': return await toolWebSearch(input);
       case 'Fetch': return await toolFetch(input);
+      case 'GenerateImage': return await toolGenerateImage(input);
+      case 'GenerateVideo': return await toolGenerateVideo(input);
       case 'TodoWrite': return toolTodoWrite(input);
       case 'ExitPlanMode': return await toolExitPlanMode(input);
       case 'memory_save': return await toolMemorySave(input);
@@ -8920,15 +9125,18 @@ function iconHtml(icon, cls='ui-icon') {
 
 
 function getMimeType(ext) {
-  const m = { png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', gif:'image/gif', bmp:'image/bmp', webp:'image/webp', svg:'image/svg+xml', ico:'image/x-icon', pdf:'application/pdf', pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation', xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', xls:'application/vnd.ms-excel', docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document', doc:'application/msword', mp3:'audio/mpeg', mp4:'video/mp4', wav:'audio/wav' };
+  const m = { png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', gif:'image/gif', bmp:'image/bmp', webp:'image/webp', svg:'image/svg+xml', ico:'image/x-icon', pdf:'application/pdf', pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation', xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', xls:'application/vnd.ms-excel', docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document', doc:'application/msword', mp3:'audio/mpeg', mp4:'video/mp4', webm:'video/webm', mov:'video/quicktime', avi:'video/x-msvideo', mkv:'video/x-matroska', wav:'audio/wav' };
   return m[ext] || 'application/octet-stream';
 }
+function isVideoExt(ext) { return ['mp4','webm','mov','avi','mkv'].includes(String(ext || '').toLowerCase()); }
 
 async function openFileViewer(path) {
   path = normPath(path);
   const node = vfsResolve(path);
   if (!node || node.type !== 'file') return;
   currentViewFile = path;
+  const viewer = document.getElementById('fileViewer');
+  viewer.classList.remove('image-mode');
   document.getElementById('fvPath').textContent = path;
   const ext = path.split('.').pop().toLowerCase();
   const fvContent = document.getElementById('fvContent');
@@ -8944,8 +9152,10 @@ async function openFileViewer(path) {
     const url = URL.createObjectURL(blob);
 
     if (IMAGE_EXTS.has(ext)) {
-      // Image preview
-      fvContent.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:16px"><img src="${url}" style="max-width:100%;max-height:100%;border-radius:6px;box-shadow:0 2px 12px rgba(0,0,0,0.3)" onload="URL.revokeObjectURL(this.src)"></div>`;
+      viewer.classList.add('image-mode');
+      openImageZoomViewer(url, path);
+    } else if (isVideoExt(ext)) {
+      fvContent.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:16px"><video src="${url}" controls style="max-width:100%;max-height:100%;border-radius:6px;box-shadow:0 2px 12px rgba(0,0,0,0.3)"></video></div>`;
     } else if (ext === 'pdf') {
       // PDF preview via iframe
       fvContent.innerHTML = `<iframe src="${url}" style="width:100%;height:100%;border:none;border-radius:4px" onload="URL.revokeObjectURL('${url}')"></iframe>`;
@@ -9001,7 +9211,62 @@ async function openFileViewer(path) {
   renderFileTree();
 }
 
-function closeFileViewer(skipRender = false) { document.getElementById('fileViewer').classList.remove('show'); currentViewFile = null; if (!skipRender) renderFileTree(); }
+function openImageZoomViewer(url, path) {
+  const fvContent = document.getElementById('fvContent');
+  fvContent.innerHTML = `<div class="image-zoom-stage" id="imageZoomStage"><img class="image-zoom-img" id="imageZoomImg" src="${url}" alt="${esc(path)}" draggable="false"></div>`;
+  const stage = document.getElementById('imageZoomStage');
+  const img = document.getElementById('imageZoomImg');
+  let scale = 1;
+  let dragging = false;
+  let dragStartX = 0, dragStartY = 0, scrollStartX = 0, scrollStartY = 0;
+  const apply = () => {
+    img.style.width = (img.naturalWidth * scale) + 'px';
+    img.style.height = (img.naturalHeight * scale) + 'px';
+    const pannable = img.naturalWidth * scale > stage.clientWidth || img.naturalHeight * scale > stage.clientHeight;
+    stage.classList.toggle('pannable', pannable);
+  };
+  img.onload = () => {
+    const fit = Math.min((stage.clientWidth - 48) / img.naturalWidth, (stage.clientHeight - 48) / img.naturalHeight, 1);
+    scale = Math.max(0.05, fit || 1);
+    apply();
+  };
+  stage.onwheel = e => {
+    e.preventDefault();
+    const before = scale;
+    const rect = stage.getBoundingClientRect();
+    const x = e.clientX - rect.left + stage.scrollLeft;
+    const y = e.clientY - rect.top + stage.scrollTop;
+    scale = Math.min(8, Math.max(0.05, scale * (e.deltaY < 0 ? 1.12 : 0.89)));
+    apply();
+    const ratio = scale / before;
+    stage.scrollLeft = x * ratio - (e.clientX - rect.left);
+    stage.scrollTop = y * ratio - (e.clientY - rect.top);
+  };
+  stage.onmousedown = e => {
+    if (!stage.classList.contains('pannable')) return;
+    dragging = true;
+    stage.classList.add('panning');
+    dragStartX = e.clientX; dragStartY = e.clientY;
+    scrollStartX = stage.scrollLeft; scrollStartY = stage.scrollTop;
+  };
+  window.onmousemove = e => {
+    if (!dragging) return;
+    stage.scrollLeft = scrollStartX - (e.clientX - dragStartX);
+    stage.scrollTop = scrollStartY - (e.clientY - dragStartY);
+  };
+  window.onmouseup = () => {
+    dragging = false;
+    stage.classList.remove('panning');
+  };
+}
+function closeFileViewer(skipRender = false) {
+  document.getElementById('fileViewer').classList.remove('show', 'image-mode');
+  document.getElementById('fvContent').innerHTML = '';
+  window.onmousemove = null;
+  window.onmouseup = null;
+  currentViewFile = null;
+  if (!skipRender) renderFileTree();
+}
 
 // File viewer resize
 (function initFvResize() {
@@ -9534,10 +9799,87 @@ function getUserTextFromContent(content) {
   if (!Array.isArray(content)) return '';
   return content.filter(block => block.type === 'text' && typeof block.text === 'string').map(block => block.text).join('\n\n').trim();
 }
+function shouldAutoGenerateMedia(text) {
+  text = String(text || '').toLowerCase();
+  if (!text) return null;
+  const imageWords = ['图片', '图像', '画一张', '生成一张', '生成图片', '生图', '绘制', '海报', '插画', '照片', 'image', 'picture', 'illustration', 'poster'];
+  const videoWords = ['视频', '动画', '影片', '短片', 'video', 'animation'];
+  const actionWords = ['生成', '创建', '制作', '画', '绘制', '设计', 'create', 'generate', 'draw', 'design', 'make'];
+  const hasAction = actionWords.some(w => text.includes(w));
+  if (hasAction && videoWords.some(w => text.includes(w))) return 'video';
+  if (hasAction && imageWords.some(w => text.includes(w))) return 'image';
+  return null;
+}
+function makeToolUseBlock(name, input) {
+  return { type: 'tool_use', id: 'toolu_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8), name, input, index: 0 };
+}
+function getRecentConversationTextForMediaPrompt(headId = activeEntryId, limit = 8) {
+  const chain = getEntryChain(headId).filter(entry => entry.type === 'message' && (entry.role === 'user' || entry.role === 'assistant'));
+  const lines = [];
+  for (const entry of chain.slice(-limit)) {
+    const text = getUserTextFromContent(entry.content);
+    if (!text) continue;
+    lines.push(`${entry.role === 'user' ? 'User' : 'Assistant'}: ${text}`);
+  }
+  return lines.join('\n');
+}
+function buildContextualMediaPrompt(userText, kind, headId = activeEntryId) {
+  const history = getRecentConversationTextForMediaPrompt(headId);
+  const type = kind === 'video' ? 'video' : 'image';
+  if (!history) return userText;
+  return [
+    `Create a ${type} based on the full conversation context below.`,
+    '',
+    'Relevant conversation:',
+    history,
+    '',
+    'Latest user request:',
+    userText,
+    '',
+    `Synthesize these into one complete ${type} generation prompt. Preserve all explicit visual requirements, style choices, subject details, constraints, and revisions from the conversation. Do not include meta commentary.`
+  ].join('\n');
+}
+function cleanGeneratedMediaPrompt(text) {
+  return String(text || '')
+    .replace(/^```(?:\w+)?\s*/i, '')
+    .replace(/```\s*$/i, '')
+    .replace(/^prompt\s*:\s*/i, '')
+    .trim();
+}
+async function generateMediaPromptWithAI(userText, kind, headId = activeEntryId) {
+  const fallback = buildContextualMediaPrompt(userText, kind, headId);
+  const type = kind === 'video' ? 'video' : 'image';
+  const history = getRecentConversationTextForMediaPrompt(headId) || '(none)';
+  const system = `You are a ${type} prompt engineer. Write exactly one polished ${type} generation prompt using the latest user request and the relevant conversation history. Preserve concrete subject, style, layout, text, constraints, and revision details. Return only the prompt, with no explanation.`;
+  const request = [
+    'Relevant conversation:',
+    history,
+    '',
+    'Latest user request:',
+    userText,
+    '',
+    `Write the final ${type} generation prompt.`
+  ].join('\n');
+  try {
+    const body = PROVIDER === 'anthropic_compat'
+      ? { model: API_MODEL, max_tokens: 900, system, messages: [{ role: 'user', content: request }] }
+      : { model: API_MODEL, stream: false, messages: [{ role: 'system', content: system }, { role: 'user', content: request }] };
+    const resp = await fetch(getLLMUrl(), { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(body), signal: abortCtrl?.signal });
+    if (!resp.ok) return fallback;
+    const data = await resp.json();
+    const text = PROVIDER === 'anthropic_compat'
+      ? (Array.isArray(data.content) ? data.content.filter(b => b.type === 'text').map(b => b.text || '').join('\n') : data.content)
+      : data.choices?.[0]?.message?.content;
+    return cleanGeneratedMediaPrompt(text) || fallback;
+  } catch {
+    return fallback;
+  }
+}
 async function buildRequestBody(messages = buildConversationFromEntries(), headId = activeEntryId) {
   const planPrompt = planMode ? '\n\n[PLAN MODE ACTIVE]\nYou must not execute write-class tools (Write, Edit, Bash, PythonExec, JSExec, MCP tools). You may use read-only tools (Read, Glob, Grep, WebSearch, Fetch) and TodoWrite to investigate. When your plan is complete, call the ExitPlanMode tool with the full plan as Markdown and wait for the user\'s approval. Do not proceed with execution until ExitPlanMode returns an approval message.' : '';
+  const mediaToolPrompt = '\n\n[MEDIA GENERATION]\nIf the user asks to generate, draw, create, design, or edit an image, call GenerateImage in this normal chat turn. If the user asks to generate, create, animate, or edit a video, call GenerateVideo. Omit the model argument unless the user explicitly names one so the configured default image/video model is used. The tool prompt must be a complete generation prompt synthesized from the latest user request and relevant conversation history (style, subject, constraints, prior revisions), not just a verbatim copy of the last user message. Do not merely describe the requested media when a generation tool is available.';
   const memPrompt = await memRecallForPrompt(messages);
-  const systemPrompt = document.getElementById('contextEditor').value + getActiveSkillMetadataPrompts() + getTriggeredSkillPrompts(headId) + getBeijingTimeStr() + planPrompt + memPrompt;
+  const systemPrompt = document.getElementById('contextEditor').value + getActiveSkillMetadataPrompts() + getTriggeredSkillPrompts(headId) + getBeijingTimeStr() + mediaToolPrompt + planPrompt + memPrompt;
   rebuildToolDefs(headId);
   if (PROVIDER === 'anthropic_compat') {
     const body = {
@@ -9719,7 +10061,7 @@ async function agentLoop(userContent, displayText, fileList, usedSkills) {
   const promptIndex = findConversationIndexByEntryId(userEntry.id);
   const userText = getUserTextFromContent(userContent) || displayText || '';
   appendUserBubble(displayText || userText, fileList, usedSkills, promptIndex, userEntry.id);
-  await _runAgentLoop(userText, { promptIndex, promptEntryId: userEntry.id });
+  await _runAgentLoop(userText, { promptIndex, promptEntryId: userEntry.id, fileList });
 }
 
 // Extract readable content from partial tool JSON for live preview
@@ -9794,6 +10136,45 @@ async function _runAgentLoop(userText, options = {}) {
   const loopBase = Number.isFinite(options.loopBase) ? options.loopBase : loopCount;
   abortCtrl = new AbortController();
   try {
+    const autoMediaKind = shouldAutoGenerateMedia(userText);
+    if (autoMediaKind) {
+      const toolName = autoMediaKind === 'video' ? 'GenerateVideo' : 'GenerateImage';
+      const imagePaths = (options.fileList || []).filter(fp => {
+        const node = vfsResolve(fp);
+        const ext = String(fp || '').split('.').pop().toLowerCase();
+        return node?.binary && IMAGE_EXTS.has(ext);
+      });
+      setStatus('running', t('status.thinking'));
+      const mediaPrompt = await generateMediaPromptWithAI(userText, autoMediaKind, promptEntryId);
+      const tu = makeToolUseBlock(toolName, { prompt: mediaPrompt, ...(imagePaths.length ? { input_image_paths: imagePaths } : {}) });
+      const assistantEntry = appendSessionEntry('message', { role: 'assistant', content: [tu], promptEntryId });
+      rebuildConversation();
+      const { msgEl, textEl, reasoningEl } = appendAssistantBubble();
+      textEl.remove();
+      reasoningEl?.remove();
+      msgEl.dataset.userText = userText;
+      msgEl.dataset.promptIndex = String(promptIndex);
+      msgEl.dataset.promptEntryId = promptEntryId || '';
+      msgEl.dataset.tokenBase = String(tokenBase);
+      msgEl.dataset.loopBase = String(loopBase);
+      msgEl.dataset.assistantEntryId = assistantEntry.id;
+      const progressEl = createMediaRenderProgress(autoMediaKind);
+      msgEl.appendChild(progressEl);
+      setStatus('running', t('media.generating'));
+      let out;
+      try {
+        out = await executeTool(tu.name, tu.input);
+      } finally {
+        removeMediaRenderProgress(progressEl);
+      }
+      const isErr = typeof out === 'string' && out.startsWith('Error:');
+      if (isErr || !(await appendMediaResultOnly(msgEl, out))) appendToolCard(msgEl, tu, out, isErr);
+      appendSessionEntry('tool_result', { content: PROVIDER === 'anthropic_compat' ? [{ type: 'tool_result', tool_use_id: tu.id, content: out, is_error: isErr || undefined }] : [{ type: 'tool_result', tool_use_id: tu.id, content: out }], promptEntryId });
+      rebuildConversation();
+      updateMemoryUI();
+      saveCurrentConv(true);
+      return;
+    }
     while (true) {
       loopCount++; updateMemoryUI();
       await checkAndCompact();
@@ -9917,7 +10298,18 @@ async function _runAgentLoop(userText, options = {}) {
             continue;
           }
           if (preCtx.input && typeof preCtx.input === 'object') effectiveInput = preCtx.input;
-          let out = await executeTool(tu.name, effectiveInput);
+          const mediaProgressEl = (tu.name === 'GenerateImage' || tu.name === 'GenerateVideo') ? createMediaRenderProgress(tu.name === 'GenerateVideo' ? 'video' : 'image') : null;
+          if (mediaProgressEl) {
+            msgEl.insertBefore(mediaProgressEl, liveEntry?.el?.nextSibling || null);
+            setStatus('running', t('media.generating'));
+            scrollBottom();
+          }
+          let out;
+          try {
+            out = await executeTool(tu.name, effectiveInput);
+          } finally {
+            removeMediaRenderProgress(mediaProgressEl);
+          }
           let isErr = typeof out === 'string' && out.startsWith('Error:');
           // On-error or post-tool hook: may override output
           if (isErr) {
@@ -9927,7 +10319,13 @@ async function _runAgentLoop(userText, options = {}) {
             const postCtx = await runHooks('post_tool', { name: tu.name, input: effectiveInput, output: out, toolUseId: tu.id, isError: false });
             if (Object.prototype.hasOwnProperty.call(postCtx, 'output') && postCtx.output !== out) { out = postCtx.output; isErr = typeof out === 'string' && out.startsWith('Error:'); }
           }
-          appendToolCard(msgEl, tu, out, isErr, liveEntry?.el || null);
+          const isMediaTool = tu.name === 'GenerateImage' || tu.name === 'GenerateVideo';
+          if (isMediaTool && !isErr) {
+            if (liveEntry?.el?.isConnected) liveEntry.el.remove();
+            if (!(await appendMediaResultOnly(msgEl, out))) appendToolCard(msgEl, tu, out, isErr, liveEntry?.el || null);
+          } else {
+            appendToolCard(msgEl, tu, out, isErr, liveEntry?.el || null);
+          }
           trs.push(PROVIDER === 'anthropic_compat' ? { type: 'tool_result', tool_use_id: tu.id, content: out, is_error: isErr || undefined } : { type: 'tool_result', tool_use_id: tu.id, content: out });
         }
         for (const el of _toolEls) {
@@ -9941,8 +10339,10 @@ async function _runAgentLoop(userText, options = {}) {
       if (result.stop_reason !== 'tool_use') break;
     }
   } catch (e) { if (e.name !== 'AbortError') appendErrorBubble(`Error: ${e.message}`, { userText, promptIndex, promptEntryId, tokenBase, loopBase }); }
-  isGenerating = false; abortCtrl = null; updateButtons(); setStatus('ready', t('status.ready')); updateMemoryUI(); saveCurrentConv(true);
-  try { await runHooks('on_stop', { loopCount, totalTokens, stoppedBy: abortCtrl === null ? 'done' : 'abort' }); } catch {}
+  finally {
+    isGenerating = false; abortCtrl = null; updateButtons(); setStatus('ready', t('status.ready')); updateMemoryUI(); saveCurrentConv(true);
+    try { await runHooks('on_stop', { loopCount, totalTokens, stoppedBy: abortCtrl === null ? 'done' : 'abort' }); } catch {}
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -10057,14 +10457,108 @@ function onToolToggleButtonClick(btn, ev) {
   ev.stopPropagation();
   toggleToolCard(btn.closest('.tool-card'));
 }
+async function renderMediaResultCards(container, { kind, mode, prompt, model, paths = [] }, options = {}) {
+  const showMeta = options.showMeta !== false;
+  container.dataset.mediaResult = JSON.stringify({ kind, mode, prompt, model, paths });
+  container.innerHTML = `${showMeta ? `<div class="media-result-meta">${esc(model || '')} · ${esc(String(mode || '').replace('_', '→'))}</div><div style="margin-bottom:8px">${esc(t('media.saved') || 'Saved generated media:')}</div>` : ''}<div class="media-result-grid"></div>`;
+  const grid = container.querySelector('.media-result-grid');
+  for (const path of paths) {
+    const node = vfsResolve(path);
+    if (!node?.binary) continue;
+    const bytes = await vfsGetBinary(path);
+    if (!bytes) continue;
+    const ext = path.split('.').pop().toLowerCase();
+    const url = URL.createObjectURL(new Blob([bytes], { type: getMimeType(ext) }));
+    const card = document.createElement('div');
+    card.className = 'media-result-card';
+    const preview = kind === 'video'
+      ? `<video src="${url}" controls></video>`
+      : `<img src="${url}" alt="${esc(prompt || path)}">`;
+    card.innerHTML = `<div class="media-result-preview">${preview}</div><div class="media-result-actions"><span title="${esc(path)}">${esc(path.split('/').pop())}</span><button class="top-btn" onclick="openFileViewer('${esc(path)}')">Open</button></div>`;
+    grid.appendChild(card);
+  }
+}
+async function appendMediaGenerationBubble({ mode, prompt, model, paths = [], error = '' }) {
+  const { msgEl, textEl, reasoningEl } = appendAssistantBubble();
+  if (reasoningEl) reasoningEl.remove();
+  if (error) {
+    textEl.innerHTML = `<div style="color:var(--accent-red)">${esc(error)}</div>`;
+    return msgEl;
+  }
+  const kind = isVideoGenerationMode(mode) ? 'video' : 'image';
+  await renderMediaResultCards(textEl, { kind, mode, prompt, model, paths });
+  const title = t('media.saved') || 'Saved generated media:';
+  appendSessionEntry('message', { role: 'assistant', content: [{ type: 'text', text: `${title}\n${paths.join('\n')}` }] });
+  rebuildConversation();
+  updateMemoryUI();
+  saveCurrentConv(true);
+  return msgEl;
+}
+
+function parseMediaToolResult(out) {
+  if (typeof out !== 'string') return null;
+  const m = out.match(/\[MEDIA_RESULT\s+({[\s\S]*?})\]\s*$/);
+  if (!m) return null;
+  try {
+    const data = JSON.parse(m[1]);
+    if (!Array.isArray(data.paths) || !data.paths.length) return null;
+    return data;
+  } catch { return null; }
+}
+function stripMediaToolMarker(out) {
+  return String(out || '').replace(/\n?\[MEDIA_RESULT\s+{[\s\S]*?}\]\s*$/, '').trim();
+}
+function createMediaRenderProgress(kind = 'image') {
+  const el = document.createElement('div');
+  el.className = 'media-render-progress';
+  el.innerHTML = `<div class="media-render-visual"></div><div class="media-render-title"><span class="streaming-cursor"></span>${esc(t('media.generating'))}</div>`;
+  return el;
+}
+function removeMediaRenderProgress(el) {
+  if (!el) return;
+  if (el._timer) clearInterval(el._timer);
+  el.remove();
+}
+async function hydrateMediaResultCards(root = document) {
+  const nodes = Array.from(root.querySelectorAll('[data-media-result]'));
+  for (const node of nodes) {
+    try {
+      const data = JSON.parse(node.dataset.mediaResult || '{}');
+      if (Array.isArray(data.paths) && data.paths.length) await renderMediaResultCards(node, data, { showMeta: !!node.querySelector('.media-result-meta') });
+    } catch {}
+  }
+}
+async function appendMediaResultOnly(msgEl, out) {
+  const mediaResult = parseMediaToolResult(out);
+  if (!mediaResult) return false;
+  const main = msgEl.querySelector('.msg-assistant-main');
+  let body = msgEl.querySelector('[data-role="assistant-text"]');
+  if (!body && main) {
+    body = document.createElement('div');
+    body.className = 'msg-body';
+    body.dataset.role = 'assistant-text';
+    main.insertBefore(body, main.firstChild);
+  }
+  if (!body) return false;
+  await renderMediaResultCards(body, mediaResult, { showMeta: false });
+  return true;
+}
 function appendToolCard(msgEl, tu, out, isErr, existingEl = null) {
   const c = existingEl || document.createElement('div');
   c.className = 'tool-card' + (isErr ? ' error' : '');
-  const sum = { Read: tu.input.file_path, Write: tu.input.file_path, Edit: tu.input.file_path, Glob: tu.input.pattern, Grep: tu.input.pattern, Bash: tu.input.command, PythonExec: (tu.input.code||'').slice(0,60), JSExec: (tu.input.code||'').slice(0,60) }[tu.name] || '';
+  const sum = { Read: tu.input.file_path, Write: tu.input.file_path, Edit: tu.input.file_path, Glob: tu.input.pattern, Grep: tu.input.pattern, Bash: tu.input.command, PythonExec: (tu.input.code||'').slice(0,60), JSExec: (tu.input.code||'').slice(0,60), GenerateImage: tu.input.prompt, GenerateVideo: tu.input.prompt }[tu.name] || '';
   const supportsCollapse = tu.name === 'Write' || tu.name === 'Edit' || tu.name === 'PythonExec' || tu.name === 'JSExec';
-  c.innerHTML = `<div class="tool-header" onclick="toggleToolCard(this.parentElement)"><span class="tool-name">${esc(tu.name)}</span><span class="tool-summary">${esc(sum)}</span>${supportsCollapse ? '<button class="tool-toggle-btn" onclick="onToolToggleButtonClick(this,event)">Expand</button>' : ''}<span class="tool-arrow">\u25BC</span></div><div class="tool-body"><div class="tool-input"><div class="tool-label">Input</div><pre class="tool-pre">${esc(JSON.stringify(tu.input,null,2))}</pre></div><div class="tool-output"><div class="tool-label">Output</div><pre class="tool-pre">${esc(typeof out==='string'?out:JSON.stringify(out,null,2))}</pre></div></div>`;
+  const mediaResult = !isErr && parseMediaToolResult(out);
+  const displayOut = mediaResult ? stripMediaToolMarker(out) : out;
+  c.innerHTML = `<div class="tool-header" onclick="toggleToolCard(this.parentElement)"><span class="tool-name">${esc(tu.name)}</span><span class="tool-summary">${esc(sum)}</span>${supportsCollapse ? '<button class="tool-toggle-btn" onclick="onToolToggleButtonClick(this,event)">Expand</button>' : ''}<span class="tool-arrow">\u25BC</span></div><div class="tool-body"><div class="tool-input"><div class="tool-label">Input</div><pre class="tool-pre">${esc(JSON.stringify(tu.input,null,2))}</pre></div><div class="tool-output"><div class="tool-label">Output</div><pre class="tool-pre">${esc(typeof displayOut==='string'?displayOut:JSON.stringify(displayOut,null,2))}</pre></div></div>`;
   if (!existingEl) msgEl.appendChild(c);
   if (supportsCollapse && !existingEl) setToolCardCollapsed(c, true);
+  if (mediaResult) {
+    const preview = document.createElement('div');
+    preview.className = 'media-tool-preview';
+    c.querySelector('.tool-body')?.appendChild(preview);
+    renderMediaResultCards(preview, mediaResult);
+  }
   // Show preview card after Write/Edit for HTML/MD files
   if (!isErr && (tu.name === 'Write' || tu.name === 'Edit') && tu.input.file_path) {
     const fp = normPath(tu.input.file_path);
@@ -10298,8 +10792,9 @@ function msgAction(btn, role) {
       node = next;
     }
     updateMemoryUI();
+    const fileList = Array.from(userBubble?.querySelectorAll('[title]') || []).map(el => el.getAttribute('title')).filter(v => v && v.startsWith('/'));
     saveCurrentConv(true);
-    _runAgentLoop(userText, { promptIndex, promptEntryId, tokenBase: totalTokens, loopBase: loopCount });
+    _runAgentLoop(userText, { promptIndex, promptEntryId, tokenBase: totalTokens, loopBase: loopCount, fileList });
   } else if (role === 'like') {
     btn.classList.toggle('ok');
     msgEl?.querySelector('[data-role="dislike"]')?.classList.remove('bad');
@@ -10342,20 +10837,38 @@ function renderChips() {
   el.innerHTML = html;
 }
 
-function handleInputUpload(ev) {
-  const files = ev.target.files;
-  for (const f of files) {
-    const path = '/' + f.name;
-    if (shouldTreatAsBinary(f)) {
-      const rd = new FileReader();
-      rd.onload = async () => { await vfsWriteBinary(path, new Uint8Array(rd.result)); attachFile(path); };
-      rd.readAsArrayBuffer(f);
-    } else {
-      const rd = new FileReader();
-      rd.onload = () => { vfsWrite(path, rd.result); attachFile(path); };
-      rd.readAsText(f);
-    }
+function _uniqueInputFilePath(file) {
+  const raw = (file && file.name) ? file.name : `pasted-${new Date().toISOString().replace(/[:.]/g, '-')}`;
+  const safe = raw.replace(/[\\/]+/g, '_') || 'pasted-file';
+  let path = '/' + safe;
+  if (!vfsResolve(path)) return path;
+  const dot = safe.lastIndexOf('.');
+  const base = dot > 0 ? safe.slice(0, dot) : safe;
+  const ext = dot > 0 ? safe.slice(dot) : '';
+  for (let i = 2; i < 1000; i++) {
+    path = `/${base}-${i}${ext}`;
+    if (!vfsResolve(path)) return path;
   }
+  return `/${Date.now()}-${safe}`;
+}
+async function attachInputFile(file) {
+  if (!file) return;
+  const path = _uniqueInputFilePath(file);
+  if (shouldTreatAsBinary(file)) {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    await vfsWriteBinary(path, bytes);
+  } else {
+    const text = await file.text();
+    vfsWrite(path, text);
+  }
+  attachFile(path);
+}
+async function attachInputFiles(files) {
+  const list = Array.from(files || []).filter(Boolean);
+  for (const file of list) await attachInputFile(file);
+}
+function handleInputUpload(ev) {
+  attachInputFiles(ev.target.files).catch(e => appendErrorBubble('Attach failed: ' + e.message));
   ev.target.value = '';
 }
 
@@ -10524,42 +11037,274 @@ function feStartDrag(ev, path) {
 
 (function initInputDrop() {
   const area = document.getElementById('chatInputArea');
-  area.addEventListener('dragover', e => {
-    if (e.dataTransfer.types.includes('application/x-vfs-path') || e.dataTransfer.types.includes('Files')) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'copy';
-      area.classList.add('dragover');
-    }
-  });
-  area.addEventListener('dragleave', e => {
-    if (!area.contains(e.relatedTarget)) area.classList.remove('dragover');
-  });
-  area.addEventListener('drop', e => {
+  const wrap = area?.closest('.chat-input-wrap') || area;
+  const typeList = dt => Array.from(dt?.types || []);
+  const itemList = dt => Array.from(dt?.items || []);
+  const hasInputPayload = e => {
+    const dt = e.dataTransfer;
+    if (!dt) return false;
+    const types = typeList(dt);
+    return types.includes('application/x-vfs-path') || types.includes('Files') || itemList(dt).some(item => item.kind === 'file');
+  };
+  const droppedFiles = dt => {
+    if (dt?.files?.length) return Array.from(dt.files);
+    return itemList(dt).filter(item => item.kind === 'file').map(item => item.getAsFile()).filter(Boolean);
+  };
+  const isInInputWrap = target => target instanceof Node && wrap && wrap.contains(target);
+  const setDragState = on => area?.classList.toggle('dragover', !!on);
+  const handleDrop = e => {
+    if (!hasInputPayload(e)) return;
     e.preventDefault();
-    area.classList.remove('dragover');
-    // VFS file drag from tree
+    e.stopPropagation();
+    setDragState(false);
     const vfsPath = e.dataTransfer.getData('application/x-vfs-path');
     if (vfsPath) {
       attachFile(vfsPath);
       return;
     }
-    // External file drop
-    if (e.dataTransfer.files?.length) {
-      for (const f of e.dataTransfer.files) {
-        const path = '/' + f.name;
-        if (shouldTreatAsBinary(f)) {
-          const rd = new FileReader();
-          rd.onload = async () => { await vfsWriteBinary(path, new Uint8Array(rd.result)); attachFile(path); };
-          rd.readAsArrayBuffer(f);
-        } else {
-          const rd = new FileReader();
-          rd.onload = () => { vfsWrite(path, rd.result); attachFile(path); };
-          rd.readAsText(f);
-        }
-      }
-    }
+    const files = droppedFiles(e.dataTransfer);
+    if (files.length) attachInputFiles(files).catch(err => appendErrorBubble('Attach failed: ' + err.message));
+  };
+  wrap?.addEventListener('dragenter', e => {
+    if (!hasInputPayload(e)) return;
+    e.preventDefault();
+    setDragState(true);
   });
+  wrap?.addEventListener('dragover', e => {
+    if (!hasInputPayload(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'copy';
+    setDragState(true);
+  });
+  wrap?.addEventListener('dragleave', e => {
+    if (!isInInputWrap(e.relatedTarget)) setDragState(false);
+  });
+  wrap?.addEventListener('drop', handleDrop);
+  area?.addEventListener('drop', handleDrop);
+  area?.addEventListener('paste', e => {
+    const files = Array.from(e.clipboardData?.files || []);
+    if (!files.length) return;
+    e.preventDefault();
+    attachInputFiles(files).catch(err => appendErrorBubble('Attach failed: ' + err.message));
+  });
+  window.addEventListener('dragover', e => { if (hasInputPayload(e)) e.preventDefault(); });
+  window.addEventListener('drop', e => { if (hasInputPayload(e) && !isInInputWrap(e.target)) e.preventDefault(); });
 })();
+
+function getMediaPromptDisplay(mode, text) {
+  return `[${(mode || '').replace('_', '→')}] ${text || ''}`.trim();
+}
+function addMediaModeHintToUserContent(content, mode, filePaths) {
+  if (!isMediaGenerationMode(mode)) return content;
+  const toolName = isVideoGenerationMode(mode) ? 'GenerateVideo' : 'GenerateImage';
+  const inputHint = isImageInputGenerationMode(mode) && filePaths?.length ? ` Use attached image path(s) as input_image_paths: ${filePaths.join(', ')}` : '';
+  const hint = `[Media generation mode selected: ${mode}. Use the ${toolName} tool to fulfill this request in the normal chat flow; do not answer with instructions only.${inputHint}]`;
+  if (Array.isArray(content)) {
+    const textBlock = content.find(b => b && b.type === 'text');
+    if (textBlock) textBlock.text = hint + '\n\n' + textBlock.text;
+    else content.unshift({ type: 'text', text: hint });
+    return content;
+  }
+  return hint + (content ? '\n\n' + content : '');
+}
+function _mediaExtFromMime(mime, fallback) {
+  const m = String(mime || '').toLowerCase();
+  if (m.includes('jpeg')) return 'jpg';
+  if (m.includes('png')) return 'png';
+  if (m.includes('webp')) return 'webp';
+  if (m.includes('gif')) return 'gif';
+  if (m.includes('mp4')) return 'mp4';
+  if (m.includes('webm')) return 'webm';
+  if (m.includes('quicktime')) return 'mov';
+  return fallback;
+}
+function _dataUrlToBytes(dataUrl) {
+  const m = String(dataUrl || '').match(/^data:([^;,]+)?(;base64)?,(.*)$/);
+  if (!m) return null;
+  const raw = m[2] ? atob(m[3]) : decodeURIComponent(m[3]);
+  const bytes = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+  return { bytes, mime: m[1] || '' };
+}
+async function _fetchMediaBytes(url) {
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error('Failed to fetch generated media: HTTP ' + resp.status);
+  return { bytes: new Uint8Array(await resp.arrayBuffer()), mime: resp.headers.get('content-type') || '' };
+}
+function _extractMediaItems(data, kind) {
+  const out = [];
+  const visit = value => {
+    if (!value) return;
+    if (Array.isArray(value)) { value.forEach(visit); return; }
+    if (typeof value === 'string') {
+      if (/^data:/.test(value) || /^https?:\/\//i.test(value)) out.push({ url: value });
+      return;
+    }
+    if (typeof value !== 'object') return;
+    if (value.b64_json) out.push({ b64: value.b64_json, mime: value.mime_type || value.mime || '' });
+    if (value.base64) out.push({ b64: value.base64, mime: value.mime_type || value.mime || '' });
+    if (value.data && typeof value.data === 'string' && /^data:/.test(value.data)) out.push({ url: value.data });
+    if (value.url) out.push({ url: value.url });
+    if (kind === 'video') {
+      if (value.video_url) out.push({ url: value.video_url });
+      if (value.output_url) out.push({ url: value.output_url });
+    }
+    ['data','output','outputs','result','results','images','videos','content'].forEach(k => {
+      if (value[k] && value[k] !== value) visit(value[k]);
+    });
+  };
+  visit(data);
+  return out;
+}
+async function saveGeneratedMediaItems(items, kind) {
+  const paths = [];
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    let bytes, mime = item.mime || '';
+    if (item.b64) {
+      const raw = atob(item.b64);
+      bytes = new Uint8Array(raw.length);
+      for (let j = 0; j < raw.length; j++) bytes[j] = raw.charCodeAt(j);
+    } else if (item.url && item.url.startsWith('data:')) {
+      const parsed = _dataUrlToBytes(item.url);
+      if (!parsed) continue;
+      bytes = parsed.bytes; mime = parsed.mime;
+    } else if (item.url) {
+      const fetched = await _fetchMediaBytes(item.url);
+      bytes = fetched.bytes; mime = fetched.mime;
+    }
+    if (!bytes) continue;
+    const ext = _mediaExtFromMime(mime, kind === 'video' ? 'mp4' : 'png');
+    const path = `/generations/${kind}-${stamp}-${i + 1}.${ext}`;
+    await vfsWriteBinary(path, bytes, true);
+    paths.push(path);
+  }
+  renderFileTree();
+  return paths;
+}
+async function serializeMediaInputImages(filePaths) {
+  const images = [];
+  for (const fp of filePaths) {
+    const node = vfsResolve(fp);
+    const ext = fp.split('.').pop().toLowerCase();
+    if (!node?.binary || !IMAGE_EXTS.has(ext)) continue;
+    const bytes = await vfsGetBinary(fp);
+    const mime = getMimeTypeForPath(fp);
+    if (bytes && mime) images.push({ path: fp, bytes, mime, b64: bytesToBase64(bytes), dataUrl: `data:${mime};base64,${bytesToBase64(bytes)}` });
+  }
+  return images;
+}
+function getMediaGenerationUrl(mode) {
+  const p = ACTIVE_PROVIDER || {};
+  if (isVideoGenerationMode(mode)) return buildProviderApiUrl(p.videoGenerationEndpoint || '/v1/videos');
+  return buildProviderApiUrl(mode === 'image_image' ? (p.imageEditEndpoint || '/v1/images/edits') : (p.imageGenerationEndpoint || '/v1/images/generations'));
+}
+function buildMediaGenerationBody(mode, prompt, model, images, variant = 0) {
+  const base = { model, prompt };
+  if (isVideoGenerationMode(mode)) {
+    if (images.length) base.image = images[0].dataUrl;
+    return base;
+  }
+  if (mode === 'image_image' && images.length) {
+    if (variant === 0) base.images = images.map(img => ({ image_url: { url: img.dataUrl } }));
+    else if (variant === 1) base.images = images.map(img => ({ image_url: img.dataUrl }));
+    else if (variant === 2) base.image = images.length === 1 ? images[0].dataUrl : images.map(img => img.dataUrl);
+  }
+  return base;
+}
+function getMediaGenerationBodyVariants(mode) {
+  return mode === 'image_image' ? [0, 1, 2] : [0];
+}
+async function pollMediaGeneration(job, mode) {
+  const p = ACTIVE_PROVIDER || {};
+  const id = job.id || job.job_id || job.task_id;
+  if (!id || !p.videoStatusEndpoint) return job;
+  const url = buildProviderApiUrl(p.videoStatusEndpoint.replace('{id}', encodeURIComponent(id)));
+  for (let i = 0; i < 60; i++) {
+    await new Promise(r => setTimeout(r, 2000));
+    const resp = await fetch(url, { headers: getProviderAuthHeaders({ json: true, respectServiceWorker: false }) });
+    if (!resp.ok) throw new Error('Video status failed: HTTP ' + resp.status);
+    const data = await resp.json();
+    const status = String(data.status || data.state || '').toLowerCase();
+    if (['succeeded','completed','complete','done','success'].includes(status)) return data;
+    if (['failed','error','cancelled','canceled'].includes(status)) throw new Error(data.error?.message || data.message || 'Video generation failed');
+  }
+  throw new Error('Video generation timed out');
+}
+async function runMediaGeneration(mode, prompt, filePaths, options = {}) {
+  const kind = isVideoGenerationMode(mode) ? 'video' : 'image';
+  const model = getDefaultMediaModel(kind, options.model || '');
+  if (!model) throw new Error(t('media.noModel'));
+  if (!prompt) throw new Error(t('media.needPrompt'));
+  const images = await serializeMediaInputImages(filePaths);
+  if (isImageInputGenerationMode(mode) && !images.length) throw new Error(t('media.needImage'));
+  const url = getMediaGenerationUrl(mode);
+  let resp, errorText = '';
+  for (const variant of getMediaGenerationBodyVariants(mode)) {
+    const body = buildMediaGenerationBody(mode, prompt, model, images, variant);
+    resp = await fetch(url, { method: 'POST', headers: getProviderAuthHeaders({ json: true, respectServiceWorker: false }), body: JSON.stringify(body), signal: abortCtrl?.signal });
+    if (resp.ok) break;
+    errorText = await resp.text();
+    const msg = errorText.toLowerCase();
+    if (!(mode === 'image_image' && resp.status === 400 && (msg.includes('image_url') || msg.includes('images') || msg.includes('image')))) break;
+  }
+  if (!resp.ok) throw new Error(`API Error (${resp.status}): ${errorText.slice(0, 300)}`);
+  let data = await resp.json();
+  if (kind === 'video' && !_extractMediaItems(data, kind).length) data = await pollMediaGeneration(data, mode);
+  const items = _extractMediaItems(data, kind);
+  if (!items.length) throw new Error('No generated media returned.');
+  const paths = await saveGeneratedMediaItems(items, kind);
+  if (!paths.length) throw new Error('Generated media could not be saved.');
+  return { mode, prompt, model, paths };
+}
+function normalizeMediaToolInput(input) {
+  input = input && typeof input === 'object' ? input : {};
+  const prompt = String(input.prompt || '').trim();
+  const inputImagePaths = Array.isArray(input.input_image_paths) ? input.input_image_paths.map(p => normPath(String(p || ''))).filter(Boolean) : [];
+  return { prompt, inputImagePaths, model: String(input.model || '').trim() };
+}
+function mediaToolResultText(result) {
+  const label = isVideoGenerationMode(result.mode) ? 'Generated video' : 'Generated image';
+  return [
+    `${label} saved successfully.`,
+    `Model: ${result.model}`,
+    `Mode: ${result.mode}`,
+    'Paths:',
+    ...result.paths,
+    '',
+    `[MEDIA_RESULT ${JSON.stringify({ kind: isVideoGenerationMode(result.mode) ? 'video' : 'image', mode: result.mode, prompt: result.prompt, model: result.model, paths: result.paths })}]`
+  ].join('\n');
+}
+async function toolGenerateImage(input) {
+  const { prompt, inputImagePaths, model } = normalizeMediaToolInput(input);
+  if (!prompt) return `Error: ${t('media.needPrompt')}`;
+  const mode = inputImagePaths.length ? 'image_image' : 'text_image';
+  const result = await runMediaGeneration(mode, prompt, inputImagePaths, { model });
+  return mediaToolResultText(result);
+}
+async function toolGenerateVideo(input) {
+  const { prompt, inputImagePaths, model } = normalizeMediaToolInput(input);
+  if (!prompt) return `Error: ${t('media.needPrompt')}`;
+  const mode = inputImagePaths.length ? 'image_video' : 'text_video';
+  const result = await runMediaGeneration(mode, prompt, inputImagePaths, { model });
+  return mediaToolResultText(result);
+}
+async function mediaGenerationLoop(text, filePaths, usedSkills) {
+  isGenerating = true; abortCtrl = new AbortController(); updateButtons(); setStatus('running', t('media.generating'));
+  const mode = MEDIA_MODE;
+  const userEntry = appendSessionEntry('message', { role: 'user', content: getMediaPromptDisplay(mode, text), usedSkillNames: (usedSkills || []).map(sk => sk.name).filter(Boolean) });
+  rebuildConversation();
+  appendUserBubble(getMediaPromptDisplay(mode, text), filePaths, usedSkills, findConversationIndexByEntryId(userEntry.id), userEntry.id);
+  try {
+    const result = await runMediaGeneration(mode, text, filePaths);
+    await appendMediaGenerationBubble(result);
+  } catch (e) {
+    appendErrorBubble(`Error: ${e.message}`, { userText: text, promptEntryId: userEntry.id });
+  }
+  isGenerating = false; abortCtrl = null; updateButtons(); setStatus('ready', t('status.ready')); updateMemoryUI(); saveCurrentConv(true);
+}
 
 async function buildUserMessageContent(text, filePaths, usedSkills) {
   const content = [];
@@ -10604,8 +11349,8 @@ async function buildUserMessageContent(text, filePaths, usedSkills) {
 // Send with attached files and /skill
 async function handleSend() {
   const inp = document.getElementById('userInput');
-  const t = inp.value.trim();
-  if ((!t && !attachedFiles.length) || isGenerating) return;
+  const text = inp.value.trim();
+  if ((!text && !attachedFiles.length) || isGenerating) return;
   inp.value = '';
   autoResize(inp);
   hideAtDropdown();
@@ -10615,8 +11360,8 @@ async function handleSend() {
   attachedFiles = [];
   invokedSkills = [];
   renderChips();
-  const msgContent = await buildUserMessageContent(t, sentFiles, usedSkills);
-  agentLoop(msgContent, t, sentFiles, usedSkills);
+  const msgContent = await buildUserMessageContent(text, sentFiles, usedSkills);
+  agentLoop(msgContent, text, sentFiles, usedSkills);
 }
 
 function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 180) + 'px'; }
@@ -10872,6 +11617,7 @@ marked.setOptions({ gfm: true, breaks: true });
   applyI18n();
   updateLangButton();
   initThinkingControl();
+  initMediaGenerationControls();
   await blobStore.init();
   await _migrateLegacyVfsBytes();
   await loadSkills();
