@@ -9609,28 +9609,66 @@ function formatTokenCount(n) {
   const value = Math.max(0, Number(n) || 0);
   return value >= 1000 ? `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k` : String(value);
 }
-function extractUsageTotal(usage) {
-  if (!usage || typeof usage !== 'object') return 0;
-  const has = key => Object.prototype.hasOwnProperty.call(usage, key) && usage[key] != null;
-  const candidates = [
-    usage.total_tokens,
-    usage.totalTokens,
-    usage.total_token_count,
-    (has('input_tokens') || has('output_tokens'))
-      ? (Number(usage.input_tokens) || 0) + (Number(usage.output_tokens) || 0) + (Number(usage.cache_creation_input_tokens) || 0) + (Number(usage.cache_read_input_tokens) || 0)
-      : null,
-    (has('prompt_tokens') || has('completion_tokens'))
-      ? (Number(usage.prompt_tokens) || 0) + (Number(usage.completion_tokens) || 0) + (Number(usage.reasoning_tokens) || 0)
-      : null,
-    (has('inputTokens') || has('outputTokens'))
-      ? (Number(usage.inputTokens) || 0) + (Number(usage.outputTokens) || 0)
-      : null,
-  ];
-  for (const val of candidates) {
-    const num = Number(val);
-    if (Number.isFinite(num) && num > 0) return num;
+function extractTokenDetailCount(value) {
+  if (typeof value === 'number') return Number.isFinite(value) && value > 0 ? value : 0;
+  if (!value || typeof value !== 'object') return 0;
+  let total = 0;
+  for (const v of Object.values(value)) {
+    if (typeof v === 'number' && Number.isFinite(v) && v > 0) total += v;
+    else if (v && typeof v === 'object') total += extractTokenDetailCount(v);
   }
-  return 0;
+  return total;
+}
+function extractUsageTotal(usage, options = {}) {
+  if (!usage || typeof usage !== 'object') return 0;
+  const cacheTokens = (Number(usage.cache_creation_input_tokens) || 0) + (Number(usage.cache_read_input_tokens) || 0);
+  const deepSeekCacheTokens = (Number(usage.prompt_cache_hit_tokens) || 0) + (Number(usage.prompt_cache_miss_tokens) || 0);
+  const promptTokens = Number(usage.prompt_tokens ?? usage.input_tokens ?? usage.inputTokens ?? deepSeekCacheTokens ?? 0) || 0;
+  const completionTokens = Number(usage.completion_tokens ?? usage.output_tokens ?? usage.outputTokens ?? 0) || 0;
+  const promptDetailTokens = extractTokenDetailCount(usage.prompt_tokens_details) + extractTokenDetailCount(usage.input_tokens_details);
+  const completionDetailTokens = extractTokenDetailCount(usage.completion_tokens_details) + extractTokenDetailCount(usage.output_tokens_details);
+  const reasoningTokens = Math.max(
+    Number(usage.reasoning_tokens) || 0,
+    Number(usage.completion_tokens_details?.reasoning_tokens) || 0,
+    Number(usage.output_tokens_details?.reasoning_tokens) || 0,
+    Number(usage.completion_tokens_details?.reasoningTokens) || 0,
+    Number(usage.output_tokens_details?.reasoningTokens) || 0
+  );
+  const providerTotal = Math.max(
+    Number(usage.total_tokens) || 0,
+    Number(usage.totalTokens) || 0,
+    Number(usage.total_token_count) || 0,
+    Number(usage.totalTokenCount) || 0
+  );
+  const inputTotal = Math.max(promptTokens + cacheTokens, promptDetailTokens, deepSeekCacheTokens);
+  const outputTotal = Math.max(completionTokens, completionDetailTokens, options.includeReasoningDetails ? reasoningTokens : 0);
+  return Math.max(providerTotal, inputTotal + outputTotal);
+}
+function estimateTokenCountFromText(text) {
+  text = String(text || '');
+  if (!text) return 0;
+  const cjk = (text.match(/[\u3400-\u9fff\uf900-\ufaff]/g) || []).length;
+  const ascii = text.replace(/[\u3400-\u9fff\uf900-\ufaff]/g, '');
+  return Math.ceil(cjk * 1.35 + ascii.length / 4);
+}
+function estimateOpenAIRequestTokens(body) {
+  if (!body || !Array.isArray(body.messages)) return 0;
+  let total = 0;
+  for (const msg of body.messages) {
+    total += 4 + estimateTokenCountFromText(msg.role || '');
+    if (typeof msg.content === 'string') total += estimateTokenCountFromText(msg.content);
+    else if (Array.isArray(msg.content)) {
+      for (const block of msg.content) {
+        if (block?.type === 'text') total += estimateTokenCountFromText(block.text || '');
+        else if (block?.type === 'image_url' || block?.type === 'image') total += 255;
+        else total += estimateTokenCountFromText(JSON.stringify(block || {}));
+      }
+    }
+    if (msg.reasoning_content) total += estimateTokenCountFromText(msg.reasoning_content);
+    if (Array.isArray(msg.tool_calls)) total += estimateTokenCountFromText(JSON.stringify(msg.tool_calls));
+  }
+  if (Array.isArray(body.tools)) total += estimateTokenCountFromText(JSON.stringify(body.tools));
+  return total;
 }
 function updateMemoryUI() {
   const mc = conversation.length;
@@ -10014,9 +10052,10 @@ async function parseAnthropicStream(reader, onText, onReasoning, onToolStart, on
 
 async function parseOpenAIStream(reader, onText, onReasoning, onToolStart, onToolDelta, options = {}) {
   const keepReasoning = !!options.keepReasoning;
+  const includeReasoningUsage = !!options.includeReasoningUsage;
   const dec = new TextDecoder(); let buf = '', txt = '', reasoning = ''; const tcs = {}; let stop = null; let usageTotal = 0;
   while (true) { const { done, value } = await reader.read(); if (done) break; buf += dec.decode(value, { stream: true }); const lines = buf.split('\n'); buf = lines.pop();
-    for (const line of lines) { if (!line.startsWith('data: ')) continue; const ds = line.slice(6).trim(); if (ds === '[DONE]') { stop = stop || 'end_turn'; continue; } let d; try { d = JSON.parse(ds); } catch { continue; } const usage = extractUsageTotal(d.usage); if (usage) usageTotal = usage; const ch = d.choices?.[0]; if (!ch) continue;
+    for (const line of lines) { if (!line.startsWith('data: ')) continue; const ds = line.slice(6).trim(); if (ds === '[DONE]') { stop = stop || 'end_turn'; continue; } let d; try { d = JSON.parse(ds); } catch { continue; } const usage = extractUsageTotal(d.usage, { includeReasoningDetails: includeReasoningUsage }); if (usage) usageTotal = usage; const ch = d.choices?.[0]; if (!ch) continue;
       if (ch.finish_reason) stop = ch.finish_reason === 'tool_calls' ? 'tool_use' : 'end_turn';
       const dl = ch.delta; if (!dl) continue;
       const reasoningChunk = extractReasoningChunkFromOpenAIDelta(dl);
@@ -10192,6 +10231,7 @@ async function _runAgentLoop(userText, options = {}) {
       loopCount++; updateMemoryUI();
       await checkAndCompact();
       const body = await buildRequestBody(buildConversationFromEntries());
+      const estimatedRequestTokens = PROVIDER === 'anthropic_compat' ? 0 : estimateOpenAIRequestTokens(body);
       body.stream = true;
       if (PROVIDER !== 'anthropic') {
         body.stream_options = { ...(body.stream_options || {}), include_usage: true };
@@ -10256,10 +10296,12 @@ async function _runAgentLoop(userText, options = {}) {
       };
       const result = PROVIDER === 'anthropic_compat'
         ? await parseAnthropicStream(reader, onText, onReasoning, onToolStart, onToolDelta)
-        : await parseOpenAIStream(reader, onText, onReasoning, onToolStart, onToolDelta, { keepReasoning: isDeepSeekActiveProvider() });
-      totalTokens += result.usage_total || 0;
-      if (Number.isFinite(result.usage_total) && result.usage_total > 0) {
-        contextTokens = result.usage_total;
+        : await parseOpenAIStream(reader, onText, onReasoning, onToolStart, onToolDelta, { keepReasoning: isDeepSeekActiveProvider(), includeReasoningUsage: isDeepSeekActiveProvider() });
+      const reportedUsage = Number(result.usage_total) || 0;
+      const turnTokens = isDeepSeekActiveProvider() ? Math.max(reportedUsage, estimatedRequestTokens + estimateTokenCountFromText(fullText)) : reportedUsage;
+      totalTokens += turnTokens;
+      if (Number.isFinite(turnTokens) && turnTokens > 0) {
+        contextTokens = turnTokens;
       }
       // Flush pending tool render before finalizing tool cards
       if (_toolRenderTimer) {
