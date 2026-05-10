@@ -1678,6 +1678,11 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
       <div style="font-size:10px;color:var(--text-dim);line-height:1.5;margin-bottom:6px" data-i18n-html="settings.swarmDesc">Built-in roles: <b>researcher</b>, <b>critic</b>, <b>writer</b>, <b>coder</b> (all read-only). The lead agent can issue several <code>SwarmSpawn</code> calls in one turn — they run in parallel up to the concurrency cap. Workers can also chain via <code>SwarmHandoff</code> (researcher → critic → writer; coder → critic → writer). Cycles and depth-overflow are rejected. Workers cannot ask the user, use MCP, or spawn more workers. Plan Mode and Ralph Loop are honored as guards.</div>
 
+      <label style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:11px;color:var(--text-secondary);margin-bottom:6px"><input type="checkbox" id="setSwarmRoleManagerEnabled" style="width:auto;margin:0"> <span data-i18n-html="settings.swarmRoleManagerEnabled">Allow agent to manage roles (exposes <code>RoleManager</code> tool to the lead)</span></label>
+      <label style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:11px;color:var(--text-secondary);margin-bottom:6px"><input type="checkbox" id="setSwarmAgentRolesPersist" style="width:auto;margin:0" onchange="_onAgentRolesPersistToggle()"> <span data-i18n="settings.swarmAgentRolesPersist">Persist agent-created roles (default off; otherwise they live only in memory)</span></label>
+      <label style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:11px;color:var(--text-secondary);margin-bottom:6px"><input type="checkbox" id="setSwarmAgentRolesPerConv" style="width:auto;margin:0" disabled> <span data-i18n="settings.swarmAgentRolesPerConv">Save per-conversation (instead of globally; only when persistence is on)</span></label>
+      <div style="font-size:10px;color:var(--text-dim);line-height:1.5;margin-bottom:6px" data-i18n="settings.swarmAgentRolesHint">Agent-created roles appear in the Swarms sidebar with a blue [agent] badge. You can delete them like any custom role; built-in and user-authored roles are protected from RoleManager.</div>
+
       <div style="border-top:1px solid var(--border);margin:14px 0 10px"></div>
       <label style="font-weight:600;color:var(--text-primary);text-transform:none;letter-spacing:0;font-size:12px"><svg class="ui-icon" aria-hidden="true"><use href="#i-brain"></use></svg> <span data-i18n="settings.memHeader">Memory</span> <span style="text-transform:none;color:var(--text-dim);font-weight:400" data-i18n="settings.memHeaderHint">(persists facts across conversations)</span></label>
       <label style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:11px;color:var(--text-secondary);margin-bottom:6px"><input type="checkbox" id="setMemEnabled" style="width:auto;margin:0"> <span data-i18n="settings.memEnable">Enable memory (default off)</span></label>
@@ -2218,6 +2223,11 @@ const I18N = {
     'swarmRoleModal.note': 'Custom roles are visible to the lead agent only when Agent Swarm is enabled in Settings. Plan Mode and the global allowWriteRoles switch still apply on top of any tool you grant here.',
     'swarmRoleModal.noSkills': 'No skills installed.',
     'swarmRoleModal.noHandoffs': 'No other roles available.',
+    // v4 — Settings (Agent role manager) + RoleManager tool messages
+    'settings.swarmRoleManagerEnabled': 'Allow agent to manage roles (exposes <code>RoleManager</code> tool to the lead)',
+    'settings.swarmAgentRolesPersist': 'Persist agent-created roles (default off; otherwise they live only in memory)',
+    'settings.swarmAgentRolesPerConv': 'Save per-conversation (instead of globally; only when persistence is on)',
+    'settings.swarmAgentRolesHint': 'Agent-created roles appear in the Swarms sidebar with a blue [agent] badge. You can delete them like any custom role; built-in and user-authored roles are protected from RoleManager.',
     // Skill install modal
     'skillModal.title': 'Install Skill',
     'skillModal.tab.market': 'Market',
@@ -2586,6 +2596,11 @@ const I18N = {
     'swarmRoleModal.note': '自定义角色仅在 Settings 中启用 Agent Swarm 后对 lead 可见。Plan Mode 与全局 allowWriteRoles 仍然在你授予的工具之上生效。',
     'swarmRoleModal.noSkills': '尚未安装任何技能。',
     'swarmRoleModal.noHandoffs': '没有其它可选角色。',
+    // v4 — 设置中的 Agent 角色管理 + RoleManager 工具
+    'settings.swarmRoleManagerEnabled': '允许 agent 管理角色（向 lead 暴露 <code>RoleManager</code> 工具）',
+    'settings.swarmAgentRolesPersist': '持久化 agent 创建的角色（默认关；否则仅活在内存）',
+    'settings.swarmAgentRolesPerConv': '按对话独立保存（仅在持久化开启时生效；不勾选则全局共享）',
+    'settings.swarmAgentRolesHint': 'agent 创建的角色会在 Swarms 侧栏带蓝色 [agent] 徽章。你可以像删除普通自定义角色那样删除它；内置与用户编写的角色受 RoleManager 保护不会被改动。',
     // Skill install modal
     'skillModal.title': '安装技能',
     'skillModal.tab.market': '市场',
@@ -3438,7 +3453,11 @@ const SWARM_DEFAULTS = {
   totalTokenBudget: 250000,    // sum across all workers in a run
   workerModel: '',             // empty = inherit lead's API_MODEL
   allowWriteRoles: false,      // if true, role.allowedTools may include Write/Edit/Bash etc.
-  maxHandoffChain: 3           // worker → handoff → handoff → ... cap (includes the originating worker)
+  maxHandoffChain: 3,          // worker → handoff → handoff → ... cap (includes the originating worker)
+  // v4 — RoleManager
+  roleManagerEnabled: false,   // expose RoleManager tool to the lead agent
+  agentRolesPersist: false,    // false = memory-only; true = save somewhere
+  agentRolesPerConv: false     // when persist=true: false = global localStorage, true = per-conversation IndexedDB
 };
 const SWARM_WRITE_TOOLS = new Set(['Write', 'Edit', 'Bash', 'PythonExec', 'JSExec', 'NodeExec', 'VfsToPyodide', 'PyodideToVfs', 'GenerateImage', 'GenerateVideo']);
 // Tools that must NEVER be in a worker's allowed set, regardless of role configuration
@@ -3453,16 +3472,53 @@ const SWARM_ROLES_KEY = 'ba_swarm_roles_v1';
 let userSwarmRoles = [];
 try { const s = localStorage.getItem(SWARM_ROLES_KEY); if (s) { const arr = JSON.parse(s); if (Array.isArray(arr)) userSwarmRoles = arr; } } catch {}
 function saveUserSwarmRoles() { try { localStorage.setItem(SWARM_ROLES_KEY, JSON.stringify(userSwarmRoles)); } catch (e) { console.warn('saveUserSwarmRoles failed', e); } }
-// Returns the merged role list (builtins first so they win on id collisions).
+
+// v4: agent-created custom roles (via the RoleManager tool). Storage depends on swarmSettings:
+//   persist=false               → memory-only (lost on reload)
+//   persist=true,  perConv=false → localStorage 'ba_swarm_agent_roles_v1' (global)
+//   persist=true,  perConv=true  → conversation IndexedDB record (saveCurrentConv)
+const SWARM_AGENT_ROLES_KEY = 'ba_swarm_agent_roles_v1';
+let agentSwarmRoles = [];
+function _loadAgentSwarmRolesAtBoot() {
+  if (!swarmSettings.agentRolesPersist || swarmSettings.agentRolesPerConv) return;
+  try {
+    const s = localStorage.getItem(SWARM_AGENT_ROLES_KEY);
+    if (s) { const arr = JSON.parse(s); if (Array.isArray(arr)) agentSwarmRoles = arr; }
+  } catch {}
+}
+_loadAgentSwarmRolesAtBoot();
+function saveAgentSwarmRoles() {
+  if (!swarmSettings.agentRolesPersist) return; // memory-only mode is a no-op
+  if (swarmSettings.agentRolesPerConv) {
+    if (typeof saveCurrentConv === 'function') saveCurrentConv();
+    return;
+  }
+  try { localStorage.setItem(SWARM_AGENT_ROLES_KEY, JSON.stringify(agentSwarmRoles)); }
+  catch (e) { console.warn('saveAgentSwarmRoles failed', e); }
+}
+// Returns the merged role list — three tiers, builtins always win on id collisions, then user, then agent.
 function getAllSwarmRoles() {
   const builtins = Object.entries(SWARM_BUILTIN_ROLES).map(([id, r]) => ({ id, builtin: true, enabled: true, ...r }));
   const userVisible = userSwarmRoles.filter(r => r && r.enabled !== false && !SWARM_BUILTIN_ROLES[r.id]);
-  return [...builtins, ...userVisible];
+  const reserved = new Set([...Object.keys(SWARM_BUILTIN_ROLES), ...userVisible.map(r => r.id)]);
+  const agentVisible = agentSwarmRoles.filter(r => r && r.enabled !== false && !reserved.has(r.id));
+  return [...builtins, ...userVisible, ...agentVisible];
 }
 function findSwarmRoleAny(roleId) {
   // Returns even disabled custom roles — used by the editor.
   if (SWARM_BUILTIN_ROLES[roleId]) return { id: roleId, builtin: true, enabled: true, ...SWARM_BUILTIN_ROLES[roleId] };
-  return userSwarmRoles.find(r => r.id === roleId) || null;
+  const u = userSwarmRoles.find(r => r.id === roleId);
+  if (u) return u;
+  const a = agentSwarmRoles.find(r => r.id === roleId);
+  if (a) return a;
+  return null;
+}
+// Helper: which tier owns a given role id?
+function _swarmRoleTier(roleId) {
+  if (SWARM_BUILTIN_ROLES[roleId]) return 'builtin';
+  if (userSwarmRoles.some(r => r.id === roleId)) return 'user';
+  if (agentSwarmRoles.some(r => r.id === roleId)) return 'agent';
+  return null;
 }
 function getSwarmRole(roleId) {
   const r = getAllSwarmRoles().find(x => x.id === roleId);
@@ -4209,7 +4265,10 @@ async function saveCurrentConv(andRenderList) {
   }
   saveConvMeta();
   const html = chatEl.innerHTML;
-  await saveConvDataToDB(activeConvId, { conversation, sessionEntries, activeEntryId, vfs, chatHTML: html, totalTokens, contextTokens, loopCount, todos, subAgentRuns, lastUsageInfo, lastInputTokens, lastOutputTokens, lastCacheReadTokens, lastCacheWriteTokens, lastTurnTokens });
+  // v4: only persist agent-tier roles per-conversation when the user explicitly opted in.
+  // `undefined` is dropped by structured clone, so disabling perConv stops polluting historical convs.
+  const swarmAgentRoles = (swarmSettings.agentRolesPersist && swarmSettings.agentRolesPerConv) ? agentSwarmRoles : undefined;
+  await saveConvDataToDB(activeConvId, { conversation, sessionEntries, activeEntryId, vfs, chatHTML: html, totalTokens, contextTokens, loopCount, todos, subAgentRuns, lastUsageInfo, lastInputTokens, lastOutputTokens, lastCacheReadTokens, lastCacheWriteTokens, lastTurnTokens, swarmAgentRoles });
   if (andRenderList) renderConvList();
   if (typeof schedulePush === 'function') schedulePush();
 }
@@ -4298,8 +4357,17 @@ async function switchConversation(id, skipSave) {
   currentViewFile = null;
   todos = Array.isArray(data?.todos) ? data.todos : [];
   subAgentRuns = Array.isArray(data?.subAgentRuns) ? data.subAgentRuns : [];
+  // v4: agent-tier roles per-conversation. Memory-only and global-persist modes are unaffected here.
+  if (swarmSettings.agentRolesPersist && swarmSettings.agentRolesPerConv) {
+    agentSwarmRoles = Array.isArray(data?.swarmAgentRoles) ? data.swarmAgentRoles : [];
+  } else if (!swarmSettings.agentRolesPersist) {
+    // Memory-only: don't carry agent roles across conversations.
+    agentSwarmRoles = [];
+  }
   if (typeof renderTodos === 'function') renderTodos();
   if (typeof renderSubAgents === 'function') renderSubAgents();
+  if (typeof renderSwarmRoles === 'function') renderSwarmRoles();
+  if (typeof rebuildToolDefs === 'function') rebuildToolDefs();
   if (data?.chatHTML) chatEl.innerHTML = data.chatHTML;
   else chatEl.innerHTML = '<div class="msg msg-system msg-placeholder"><div class="msg-body">Conversation loaded.</div></div>';
   await hydrateMediaResultCards(chatEl);
@@ -7695,6 +7763,11 @@ function openSettingsModal() {
   document.getElementById('setSwarmWorkerModel').value = swarmSettings.workerModel || '';
   document.getElementById('setSwarmAllowWrite').checked = !!swarmSettings.allowWriteRoles;
   document.getElementById('setSwarmMaxHandoffChain').value = String(swarmSettings.maxHandoffChain || SWARM_DEFAULTS.maxHandoffChain);
+  // v4 RoleManager fields
+  document.getElementById('setSwarmRoleManagerEnabled').checked = !!swarmSettings.roleManagerEnabled;
+  document.getElementById('setSwarmAgentRolesPersist').checked = !!swarmSettings.agentRolesPersist;
+  document.getElementById('setSwarmAgentRolesPerConv').checked = !!swarmSettings.agentRolesPerConv;
+  document.getElementById('setSwarmAgentRolesPerConv').disabled = !swarmSettings.agentRolesPersist;
   const mem = { ...MEM_DEFAULTS, ...(s.memory || {}) };
   document.getElementById('setMemEnabled').checked = !!mem.enabled;
   document.getElementById('setMemAutoExtract').checked = !!mem.autoExtract;
@@ -7992,6 +8065,10 @@ async function saveSettings() {
   const swMaxRaw = parseInt(document.getElementById('setSwarmMaxWorkers').value, 10);
   const swBudRaw = parseInt(document.getElementById('setSwarmTotalBudget').value, 10);
   const swChainRaw = parseInt(document.getElementById('setSwarmMaxHandoffChain').value, 10);
+  const prevAgentRolesPersist = !!swarmSettings.agentRolesPersist;
+  const prevAgentRolesPerConv = !!swarmSettings.agentRolesPerConv;
+  const newAgentRolesPersist = document.getElementById('setSwarmAgentRolesPersist').checked;
+  const newAgentRolesPerConv = newAgentRolesPersist && document.getElementById('setSwarmAgentRolesPerConv').checked;
   swarmSettings = {
     ...SWARM_DEFAULTS,
     ...swarmSettings,
@@ -8002,8 +8079,25 @@ async function saveSettings() {
     workerModel: (document.getElementById('setSwarmWorkerModel').value || '').trim(),
     allowWriteRoles: document.getElementById('setSwarmAllowWrite').checked,
     maxHandoffChain: Number.isFinite(swChainRaw) ? Math.min(8, Math.max(1, swChainRaw)) : SWARM_DEFAULTS.maxHandoffChain,
+    roleManagerEnabled: document.getElementById('setSwarmRoleManagerEnabled').checked,
+    agentRolesPersist: newAgentRolesPersist,
+    agentRolesPerConv: newAgentRolesPerConv,
   };
   saveSwarmSettings();
+  // v4: react to persistence-mode flips. Goal — keep the agent's currently-known roles
+  // visible after the switch by writing them to whichever store is now active. Do not
+  // touch the alternate store, so user can flip back to recover prior state.
+  if (newAgentRolesPersist && !prevAgentRolesPersist) {
+    // memory → persisted: snapshot current memory list into the chosen store.
+    saveAgentSwarmRoles();
+  } else if (!newAgentRolesPersist && prevAgentRolesPersist) {
+    // persisted → memory: leave existing stored copy intact (user can flip back), just stop autosaving.
+  } else if (newAgentRolesPersist && (newAgentRolesPerConv !== prevAgentRolesPerConv)) {
+    // perConv flip: write to the new destination so the in-memory list survives the change.
+    saveAgentSwarmRoles();
+  }
+  if (typeof renderSwarmRoles === 'function') renderSwarmRoles();
+  if (typeof rebuildToolDefs === 'function') rebuildToolDefs();
 
   if (memEnabled && !prevMem.enabled) { openMemDB().catch(e => console.warn('Memory DB open failed', e)); memLoadCache().catch(() => {}); }
   renderMemoryButton();
@@ -8480,6 +8574,8 @@ async function _buildLocalState() {
     disabledTools: disabledTools instanceof Set ? [...disabledTools] : [],
     hooks: Array.isArray(hooks) ? hooks : [],
     swarmRoles: Array.isArray(userSwarmRoles) ? userSwarmRoles : [],
+    // v4: agent-tier roles only sync in global persistence mode (per-conv lives in conv records).
+    swarmAgentRoles: (swarmSettings.agentRolesPersist && !swarmSettings.agentRolesPerConv && Array.isArray(agentSwarmRoles)) ? agentSwarmRoles : [],
     wsConfig: { ...(wsConfig || {}) },
     theme: localStorage.getItem('ba_theme') || 'dark',
     language: CURRENT_LANG,
@@ -8588,6 +8684,12 @@ async function _applyRemoteState(remote, objs, blobMap) {
       if (Array.isArray(s.swarmRoles)) {
         userSwarmRoles = s.swarmRoles;
         saveUserSwarmRoles();
+        if (typeof renderSwarmRoles === 'function') renderSwarmRoles();
+      }
+      // v4: agent-tier roles only round-trip via cloud sync in global mode.
+      if (Array.isArray(s.swarmAgentRoles) && swarmSettings.agentRolesPersist && !swarmSettings.agentRolesPerConv) {
+        agentSwarmRoles = s.swarmAgentRoles;
+        saveAgentSwarmRoles();
         if (typeof renderSwarmRoles === 'function') renderSwarmRoles();
       }
       if (s.wsConfig) {
@@ -10157,6 +10259,7 @@ const BASE_TOOLS_ANTHROPIC = [
   { name: 'SwarmSpawn', description: 'Delegate a focused task to a role-scoped swarm worker (e.g. researcher, critic, writer, coder). Issuing multiple SwarmSpawn tool_use blocks in a single turn runs them in PARALLEL up to the configured concurrency cap — prefer this over sequential RunSubAgent calls for breadth-first work. Each worker has its own role contract, tool whitelist, and token budget. Workers cannot spawn workers, ask the user, or use MCP. Available only when Agent Swarm is enabled in Settings.', input_schema: { type: 'object', properties: { role: { type: 'string', description: 'Worker role id. Built-ins: researcher, critic, writer, coder.' }, task: { type: 'string', description: 'Specific objective for this worker (one focused sub-question or sub-task).' }, output_format: { type: 'string', description: 'Required shape of the final answer (e.g. "bulleted list with URL citations", "markdown table with columns X/Y/Z").' }, context: { type: 'string', description: 'Optional background passed to the worker.' } }, required: ['role', 'task'] } },
   { name: 'SwarmStatus', description: 'Inspect the current swarm run: active workers, token usage, recent results. Use when a previous SwarmSpawn batch returned errors and you need to decide whether to retry or stop.', input_schema: { type: 'object', properties: {} } },
   { name: 'SwarmAbort', description: 'Mark the current swarm run as aborted; in-flight workers will exit at their next budget check. Use only when the user signals to stop, or when the task is clearly off-track.', input_schema: { type: 'object', properties: { reason: { type: 'string', description: 'Short reason shown to the user.' } } } },
+  { name: 'RoleManager', description: 'Lead-only tool: create, edit, or remove custom Swarm worker roles for the current task. Roles created here become callable via SwarmSpawn immediately. Built-in roles (researcher / critic / writer / coder) and user-authored UI roles cannot be modified or deleted by this tool — only roles you (the agent) create. Persistence and per-conversation isolation are user-controlled in Settings; call list first to inspect what already exists. Risky operations (delete, large-prompt overwrite) require confirmed=true. Available only when both Agent Swarm and "Allow agent to manage roles" are enabled.', input_schema: { type: 'object', properties: { action: { type: 'string', enum: ['list', 'inspect', 'create', 'update', 'delete', 'duplicate'], description: 'list = summarize all roles across tiers; inspect = full role JSON; create = add a new agent-owned role; update = change one of your agent-owned roles; delete = remove an agent-owned role; duplicate = copy any role into the agent tier under a new id.' }, id: { type: 'string', description: 'Target role id for inspect/update/delete/duplicate.' }, role: { type: 'object', description: 'Role definition for create / update. Required fields: id (kebab-case), name, systemPrompt. Optional: description, allowedTools[], allowedHandoffs[], bindSkills[] (skill ids), maxSteps (1-30), tokenBudget (5000-200000), defaultModel, enabled.', properties: { id: { type: 'string' }, name: { type: 'string' }, description: { type: 'string' }, systemPrompt: { type: 'string' }, allowedTools: { type: 'array', items: { type: 'string' } }, allowedHandoffs: { type: 'array', items: { type: 'string' } }, bindSkills: { type: 'array', items: { type: 'string' } }, maxSteps: { type: 'integer' }, tokenBudget: { type: 'integer' }, defaultModel: { type: 'string' }, enabled: { type: 'boolean' } } }, newId: { type: 'string', description: 'For duplicate: id of the new copy. Defaults to <id>-copy or -copy-N to avoid collision.' }, confirmed: { type: 'boolean', description: 'Set true to acknowledge a risky operation: delete, or update that overwrites a substantially different role.' }, dry_run: { type: 'boolean', description: 'Validate and report what would change without applying.' } }, required: ['action'] } },
   { name: 'SwarmHandoff', description: 'Worker-only routine handoff: pass control to the next role in the chain (OpenAI Swarm-style). Available ONLY inside a swarm worker — the lead agent must use SwarmSpawn instead. After a successful handoff, this worker stops; the next worker receives your final text plus the brief and produces the next link of the chain. The originating SwarmSpawn returns the merged chain output to the lead.', input_schema: { type: 'object', properties: { target_role: { type: 'string', description: 'Next role id. Must be in this role\'s allowedHandoffs list and not already in the current chain.' }, brief: { type: 'string', description: 'What the next worker must do. Be specific and self-contained — assume they only read your final text + this brief.' }, output_format: { type: 'string', description: 'Optional override of the output format requested for the next worker.' } }, required: ['target_role', 'brief'] } },
   { name: 'bb_write', description: 'Write a note / result to the swarm blackboard (a per-turn shared workspace). Use clear keys (e.g. "tradeoffs/langgraph") and tags so other workers can find it. Append-only — entries are not deleted. Cap: 200 entries per turn, 4000 chars per entry.', input_schema: { type: 'object', properties: { key: { type: 'string', description: 'Short label, e.g. "summary/openai-swarm".' }, content: { type: 'string', description: 'The note or result text.' }, type: { type: 'string', enum: ['note', 'result', 'task'], description: 'Default note. Use result for finished outputs that consumers should pick up; use task only via bb_post_task.' }, tags: { type: 'array', items: { type: 'string' }, description: 'Optional lowercase tags for retrieval.' } }, required: ['content'] } },
   { name: 'bb_read', description: 'Read full content of matching blackboard entries (newest first). Filter by query (substring), key, type, or tags. Returns up to 20.', input_schema: { type: 'object', properties: { query: { type: 'string', description: 'Substring filter against key + content + tags.' }, key: { type: 'string', description: 'Exact key match.' }, type: { type: 'string', enum: ['note', 'result', 'task'] }, tags: { type: 'array', items: { type: 'string' }, description: 'All tags must be present.' }, since: { type: 'integer', description: 'Unix ms; only entries newer than this.' }, limit: { type: 'integer', description: 'Max entries (default 8, max 20).' } } } },
@@ -10295,7 +10398,10 @@ let _swarmRoleModalIsCreate = false;
 function renderSwarmRoles() {
   const el = document.getElementById('swarmRolesList');
   if (!el) return;
-  const all = getAllSwarmRoles().concat(userSwarmRoles.filter(r => r && r.enabled === false && !SWARM_BUILTIN_ROLES[r.id]));
+  const all = getAllSwarmRoles().concat(
+    userSwarmRoles.filter(r => r && r.enabled === false && !SWARM_BUILTIN_ROLES[r.id]),
+    agentSwarmRoles.filter(r => r && r.enabled === false && !SWARM_BUILTIN_ROLES[r.id] && !userSwarmRoles.some(u => u.id === r.id))
+  );
   // Deduplicate while preserving order, but include disabled custom roles for the editor view.
   const seen = new Set();
   const visible = [];
@@ -10310,6 +10416,7 @@ function renderSwarmRoles() {
   }
   el.innerHTML = visible.map(r => {
     const isBuiltin = !!r.builtin;
+    const isAgent = !isBuiltin && (r.createdBy === 'agent' || r.source === 'agent');
     const enabled = r.enabled !== false;
     const skillCount = Array.isArray(r.bindSkills) ? r.bindSkills.length : 0;
     const handoffCount = Array.isArray(r.allowedHandoffs) ? r.allowedHandoffs.length : 0;
@@ -10317,14 +10424,21 @@ function renderSwarmRoles() {
     if (skillCount) meta.push(skillCount + ' skill' + (skillCount > 1 ? 's' : ''));
     if (handoffCount) meta.push(handoffCount + ' handoff' + (handoffCount > 1 ? 's' : ''));
     const metaText = meta.length ? ' · ' + meta.join(' · ') : '';
-    const builtinBadge = isBuiltin ? '<span style="background:var(--text-dim);color:#1a1a1a;font-size:9px;padding:1px 5px;border-radius:3px;margin-left:4px">builtin</span>' : '';
+    const sourceBadge = isBuiltin
+      ? '<span style="background:var(--text-dim);color:#1a1a1a;font-size:9px;padding:1px 5px;border-radius:3px;margin-left:4px">builtin</span>'
+      : (isAgent
+        ? '<span style="background:var(--accent-blue,#5b8af5);color:#1a1a1a;font-size:9px;padding:1px 5px;border-radius:3px;margin-left:4px">agent</span>'
+        : '');
     const titleColor = enabled ? 'var(--text-primary)' : 'var(--text-dim)';
-    const editAction = isBuiltin ? `duplicateSwarmRole('${esc(r.id)}')` : `openSwarmRoleModal('edit','${esc(r.id)}')`;
-    const editLabel = isBuiltin ? t('swarms.duplicate', 'Duplicate') : t('action.edit', 'Edit');
+    const isEditableInUi = !isBuiltin && !isAgent; // agent roles are managed via the RoleManager tool, not the UI editor
+    const editAction = isBuiltin
+      ? `duplicateSwarmRole('${esc(r.id)}')`
+      : (isAgent ? `duplicateSwarmRole('${esc(r.id)}')` : `openSwarmRoleModal('edit','${esc(r.id)}')`);
+    const editLabel = isEditableInUi ? t('action.edit', 'Edit') : t('swarms.duplicate', 'Duplicate');
     return `<div class="hook-item" style="display:flex;align-items:center;gap:6px;cursor:default">
       <input type="checkbox" ${enabled ? 'checked' : ''} onchange="toggleSwarmRoleEnabled('${esc(r.id)}')" ${isBuiltin ? 'disabled title="Built-in roles are always enabled"' : 'title="Enable / disable"'} style="margin:0;cursor:${isBuiltin ? 'not-allowed' : 'pointer'}">
       <span class="h-icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-bolt"></use></svg></span>
-      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;${enabled ? '' : 'opacity:0.55;'}color:${titleColor}" onclick="${editAction}" title="${esc(editLabel)}">${esc(r.name || r.id)}${builtinBadge} <span style="color:var(--text-dim);font-size:10px">${esc(r.id)}${esc(metaText)}</span></span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;${enabled ? '' : 'opacity:0.55;'}color:${titleColor}" onclick="${editAction}" title="${esc(editLabel)}">${esc(r.name || r.id)}${sourceBadge} <span style="color:var(--text-dim);font-size:10px">${esc(r.id)}${esc(metaText)}</span></span>
       <button class="skill-install-btn" style="flex:none;margin:0;padding:2px 6px;font-size:10px" onclick="duplicateSwarmRole('${esc(r.id)}')" title="${esc(t('swarms.duplicate', 'Duplicate'))}">&#x29C9;</button>
       ${isBuiltin ? '' : `<button class="skill-install-btn" style="flex:none;margin:0;padding:2px 6px;font-size:10px" onclick="deleteSwarmRole('${esc(r.id)}')" title="${esc(t('swarms.delete', 'Delete'))}">&times;</button>`}
     </div>`;
@@ -10486,31 +10600,47 @@ function saveSwarmRoleFromModal() {
 function deleteSwarmRole(id) {
   if (SWARM_BUILTIN_ROLES[id]) return;
   if (!confirm(t('swarms.deleteConfirm', 'Delete custom role "' + id + '"?'))) return;
-  userSwarmRoles = userSwarmRoles.filter(r => r.id !== id);
-  saveUserSwarmRoles();
+  // Remove from whichever tier owns the id (user or agent).
+  if (userSwarmRoles.some(r => r.id === id)) {
+    userSwarmRoles = userSwarmRoles.filter(r => r.id !== id);
+    saveUserSwarmRoles();
+  } else if (agentSwarmRoles.some(r => r.id === id)) {
+    agentSwarmRoles = agentSwarmRoles.filter(r => r.id !== id);
+    saveAgentSwarmRoles();
+  } else {
+    return;
+  }
   renderSwarmRoles();
   if (typeof rebuildToolDefs === 'function') rebuildToolDefs();
 }
 
 function toggleSwarmRoleEnabled(id) {
   if (SWARM_BUILTIN_ROLES[id]) return;
-  const r = userSwarmRoles.find(x => x.id === id);
-  if (!r) return;
-  r.enabled = r.enabled === false;
-  saveUserSwarmRoles();
-  renderSwarmRoles();
+  const userRole = userSwarmRoles.find(x => x.id === id);
+  if (userRole) {
+    userRole.enabled = userRole.enabled === false;
+    saveUserSwarmRoles();
+    renderSwarmRoles();
+    return;
+  }
+  const agentRole = agentSwarmRoles.find(x => x.id === id);
+  if (agentRole) {
+    agentRole.enabled = agentRole.enabled === false;
+    saveAgentSwarmRoles();
+    renderSwarmRoles();
+  }
 }
 
 function duplicateSwarmRole(id) {
-  const src = SWARM_BUILTIN_ROLES[id]
-    ? { id, ...SWARM_BUILTIN_ROLES[id] }
-    : userSwarmRoles.find(r => r.id === id);
+  let src = null;
+  if (SWARM_BUILTIN_ROLES[id]) src = { id, ...SWARM_BUILTIN_ROLES[id] };
+  else src = userSwarmRoles.find(r => r.id === id) || agentSwarmRoles.find(r => r.id === id);
   if (!src) return;
   // Generate a unique new id like "<id>-copy", "-copy-2", ...
   let baseNew = src.id + '-copy';
   let candidate = baseNew;
   let n = 2;
-  while (SWARM_BUILTIN_ROLES[candidate] || userSwarmRoles.some(r => r.id === candidate)) {
+  while (SWARM_BUILTIN_ROLES[candidate] || userSwarmRoles.some(r => r.id === candidate) || agentSwarmRoles.some(r => r.id === candidate)) {
     candidate = baseNew + '-' + n++;
   }
   const copy = {
@@ -10526,6 +10656,7 @@ function duplicateSwarmRole(id) {
     defaultModel: src.defaultModel || undefined,
     enabled: true,
   };
+  // UI-driven duplicate always lands in the user tier (visible + editable in the editor).
   userSwarmRoles.push(copy);
   saveUserSwarmRoles();
   renderSwarmRoles();
@@ -10602,6 +10733,7 @@ function rebuildToolDefs(headId = activeEntryId, options = {}) {
     if (t.name === 'GenerateVideo') return hasConfiguredDefaultMediaModel('video');
     // Swarm tools only when Agent Swarm is enabled
     if (t.name === 'SwarmSpawn' || t.name === 'SwarmStatus' || t.name === 'SwarmAbort' || t.name === 'SwarmHandoff') return !!swarmSettings.enabled;
+    if (t.name === 'RoleManager') return !!swarmSettings.enabled && !!swarmSettings.roleManagerEnabled;
     if (t.name === 'bb_write' || t.name === 'bb_read' || t.name === 'bb_list' || t.name === 'bb_post_task' || t.name === 'bb_claim') return !!swarmSettings.enabled;
     return true;
   });
@@ -10651,7 +10783,8 @@ async function executeTool(name, input) {
     if (planMode && name !== 'ExitPlanMode' && name !== 'TodoWrite' && name !== 'AskUser') {
       const isMcp = mcpTools.find(t => t.name === name);
       const isBlockedSkillManagerWrite = name === 'SkillManager' && isSkillManagerWriteAction(input || {});
-      if (PLAN_MODE_WRITE_TOOLS.has(name) || isMcp || isBlockedSkillManagerWrite) {
+      const isBlockedRoleManagerWrite = name === 'RoleManager' && isRoleManagerWriteAction(input || {});
+      if (PLAN_MODE_WRITE_TOOLS.has(name) || isMcp || isBlockedSkillManagerWrite || isBlockedRoleManagerWrite) {
         return `Error: Plan Mode is active. The tool "${name}" is blocked. Finish gathering information with read-only tools (Read / Glob / Grep / WebSearch / Fetch) and call ExitPlanMode when your plan is ready for user approval.`;
       }
     }
@@ -10676,6 +10809,7 @@ async function executeTool(name, input) {
       case 'SwarmStatus': return await toolSwarmStatus();
       case 'SwarmAbort': return await toolSwarmAbort(input);
       case 'SwarmHandoff': return 'Error: SwarmHandoff is a worker-only tool. The lead agent should use SwarmSpawn to delegate to a role; the worker itself decides whether to hand off to the next role.';
+      case 'RoleManager': return await toolRoleManager(input || {});
       case 'bb_write': return await toolBbWrite(input);
       case 'bb_read': return await toolBbRead(input);
       case 'bb_list': return await toolBbList(input);
@@ -10874,6 +11008,7 @@ async function executeSubAgentTool(name, input, run, roleConfig) {
   const allowed = getSubAgentAllowedToolNames(roleConfig);
   if (name === SUB_AGENT_TOOL_NAME) return { output: 'Error: Sub-agents cannot spawn other sub-agents.', isError: true };
   if (name === SWARM_TOOL_NAME) return { output: 'Error: Swarm workers cannot spawn other workers.', isError: true };
+  if (name === 'RoleManager') return { output: 'Error: RoleManager is a lead-only tool. Workers cannot modify role definitions.', isError: true };
   // Handoff: validate and stash a pendingHandoff signal on the run; the loop unwinds at end of step.
   if (name === SWARM_HANDOFF_TOOL_NAME) {
     if (!roleConfig) return { output: 'Error: SwarmHandoff is only available to swarm workers.', isError: true };
@@ -11131,6 +11266,226 @@ async function toolSwarmAbort(input) {
   swarmRunActive.aborted = true;
   swarmRunActive.abortedReason = reason;
   return `Swarm run ${swarmRunActive.id} marked aborted: ${reason}. Workers will exit at their next budget check.`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ROLE MANAGER (v4) — agent-callable CRUD over agent-tier custom roles.
+// Lead-only. Built-in and v3 user-authored roles are read-only to this tool.
+// ═══════════════════════════════════════════════════════════════════
+const ROLE_MANAGER_READ_ACTIONS = new Set(['list', 'inspect']);
+const ROLE_MANAGER_WRITE_ACTIONS = new Set(['create', 'update', 'delete', 'duplicate']);
+function isRoleManagerWriteAction(input) {
+  return ROLE_MANAGER_WRITE_ACTIONS.has(String(input?.action || '').trim());
+}
+// Settings-modal helper: enable the per-conversation checkbox only when persistence is on.
+function _onAgentRolesPersistToggle() {
+  const persist = document.getElementById('setSwarmAgentRolesPersist');
+  const perConv = document.getElementById('setSwarmAgentRolesPerConv');
+  if (!persist || !perConv) return;
+  if (!persist.checked) { perConv.checked = false; perConv.disabled = true; }
+  else { perConv.disabled = false; }
+}
+function _rmResult(payload) { return JSON.stringify(payload, null, 2); }
+function _rmError(action, message, extra) { return _rmResult({ ok: false, action: action || 'unknown', error: message, ...(extra || {}) }); }
+function _rmSummarizeRole(r) {
+  return {
+    id: r.id,
+    name: r.name || r.id,
+    source: r.builtin ? 'builtin' : (r.createdBy === 'agent' || r.source === 'agent' ? 'agent' : 'user'),
+    enabled: r.enabled !== false,
+    tools: Array.isArray(r.allowedTools) ? r.allowedTools.length : 0,
+    handoffs: Array.isArray(r.allowedHandoffs) ? r.allowedHandoffs.length : 0,
+    skills: Array.isArray(r.bindSkills) ? r.bindSkills.length : 0,
+    description: r.description || ''
+  };
+}
+function _rmFullRole(r) {
+  // Strip the boot-time mutable .builtin / .enabled defaults so the JSON looks like a clean role record.
+  const out = { id: r.id, name: r.name, description: r.description || '', systemPrompt: r.systemPrompt || '', allowedTools: r.allowedTools || [], allowedHandoffs: r.allowedHandoffs || [], bindSkills: r.bindSkills || [], maxSteps: r.maxSteps || 6, tokenBudget: r.tokenBudget || 60000, enabled: r.enabled !== false };
+  if (r.defaultModel) out.defaultModel = r.defaultModel;
+  if (r.builtin) out.builtin = true;
+  if (r.createdBy) out.createdBy = r.createdBy;
+  if (r.createdAt) out.createdAt = r.createdAt;
+  return out;
+}
+// Decide whether an update is "substantial" enough to require confirmed=true.
+function _rmIsSubstantialUpdate(prev, next) {
+  const pp = String(prev.systemPrompt || '');
+  const np = String(next.systemPrompt || '');
+  if (pp && np && pp !== np) {
+    // Compare lengths; consider >25% length swing a substantial change.
+    const ratio = Math.abs(pp.length - np.length) / Math.max(pp.length, 1);
+    if (ratio > 0.25) return true;
+  } else if (!!pp !== !!np) {
+    return true;
+  }
+  const prevTools = new Set(prev.allowedTools || []);
+  const nextTools = new Set(next.allowedTools || []);
+  let toolDiff = 0;
+  for (const t of prevTools) if (!nextTools.has(t)) toolDiff++;
+  for (const t of nextTools) if (!prevTools.has(t)) toolDiff++;
+  if (toolDiff >= 3) return true;
+  const prevSkills = new Set(prev.bindSkills || []);
+  const nextSkills = new Set(next.bindSkills || []);
+  let skillDiff = 0;
+  for (const s of prevSkills) if (!nextSkills.has(s)) skillDiff++;
+  for (const s of nextSkills) if (!prevSkills.has(s)) skillDiff++;
+  if (skillDiff >= 1) return true;
+  return false;
+}
+function _rmNormalizeIncomingRole(role) {
+  if (!role || typeof role !== 'object') return null;
+  const out = {
+    id: String(role.id || '').trim(),
+    name: String(role.name || '').trim(),
+    description: String(role.description || '').trim(),
+    systemPrompt: String(role.systemPrompt || ''),
+    allowedTools: Array.isArray(role.allowedTools) ? role.allowedTools.map(String).filter(Boolean) : [],
+    allowedHandoffs: Array.isArray(role.allowedHandoffs) ? role.allowedHandoffs.map(String).filter(Boolean) : [],
+    bindSkills: Array.isArray(role.bindSkills) ? role.bindSkills.map(String).filter(Boolean) : [],
+    maxSteps: Number.isFinite(role.maxSteps) ? Math.min(30, Math.max(1, role.maxSteps | 0)) : 6,
+    tokenBudget: Number.isFinite(role.tokenBudget) ? Math.min(200000, Math.max(5000, role.tokenBudget | 0)) : 60000,
+    enabled: role.enabled !== false,
+  };
+  if (role.defaultModel) out.defaultModel = String(role.defaultModel).trim();
+  return out;
+}
+async function toolRoleManager(input) {
+  if (!swarmSettings.enabled) return _rmError(input?.action, 'Agent Swarm is disabled. Ask the user to enable it in Settings → Agent Swarm.');
+  if (!swarmSettings.roleManagerEnabled) return _rmError(input?.action, 'RoleManager is disabled. Ask the user to enable "Allow agent to manage roles" in Settings → Agent Swarm.');
+  if (ralphRun?.active) return _rmError(input?.action, 'RoleManager is disabled while Ralph Loop is active.');
+  const action = String(input?.action || '').trim();
+  if (!action) return _rmError('', 'Missing required field "action".');
+  switch (action) {
+    case 'list':       return _rmList();
+    case 'inspect':    return _rmInspect(input);
+    case 'create':     return _rmCreate(input);
+    case 'update':     return _rmUpdate(input);
+    case 'delete':     return _rmDelete(input);
+    case 'duplicate':  return _rmDuplicate(input);
+    default:           return _rmError(action, `Unknown action "${action}". Valid: list, inspect, create, update, delete, duplicate.`);
+  }
+}
+function _rmList() {
+  const roles = getAllSwarmRoles().concat(
+    userSwarmRoles.filter(r => r && r.enabled === false && !SWARM_BUILTIN_ROLES[r.id]),
+    agentSwarmRoles.filter(r => r && r.enabled === false && !SWARM_BUILTIN_ROLES[r.id] && !userSwarmRoles.some(u => u.id === r.id))
+  );
+  // Dedupe by id while keeping merge order
+  const seen = new Set();
+  const uniq = [];
+  for (const r of roles) { if (!seen.has(r.id)) { seen.add(r.id); uniq.push(r); } }
+  return _rmResult({
+    ok: true,
+    action: 'list',
+    summary: `${uniq.length} role(s) total — builtin: ${uniq.filter(r => r.builtin).length}, user: ${uniq.filter(r => !r.builtin && r.createdBy !== 'agent' && r.source !== 'agent').length}, agent: ${uniq.filter(r => r.createdBy === 'agent' || r.source === 'agent').length}.`,
+    roles: uniq.map(_rmSummarizeRole),
+    persistMode: !swarmSettings.agentRolesPersist ? 'memory' : (swarmSettings.agentRolesPerConv ? 'per-conversation' : 'global'),
+  });
+}
+function _rmInspect(input) {
+  const id = String(input?.id || '').trim();
+  if (!id) return _rmError('inspect', 'Missing "id".');
+  const r = findSwarmRoleAny(id);
+  if (!r) return _rmError('inspect', `Role "${id}" not found.`);
+  return _rmResult({ ok: true, action: 'inspect', role: _rmFullRole(r) });
+}
+function _rmCreate(input) {
+  const incoming = _rmNormalizeIncomingRole(input?.role || {});
+  if (!incoming) return _rmError('create', 'Missing "role" object.');
+  if (!SWARM_ROLE_ID_PATTERN.test(incoming.id)) return _rmError('create', 'Invalid id; must match /^[a-z][a-z0-9-]{0,47}$/ (kebab-case).');
+  if (!incoming.name) return _rmError('create', 'role.name is required.');
+  if (!incoming.systemPrompt || incoming.systemPrompt.trim().length < 10) return _rmError('create', 'role.systemPrompt must be at least 10 chars.');
+  if (incoming.allowedHandoffs.includes(incoming.id)) return _rmError('create', 'A role cannot hand off to itself.');
+  const existingTier = _swarmRoleTier(incoming.id);
+  if (existingTier) return _rmError('create', `ID "${incoming.id}" already exists in the ${existingTier} tier.`, { conflict_tier: existingTier });
+  if (input?.dry_run) return _rmResult({ ok: true, action: 'create', dry_run: true, role: _rmFullRole(incoming), summary: `Would create agent role "${incoming.id}".` });
+  const stored = { ...incoming, source: 'agent', createdBy: 'agent', createdAt: Date.now() };
+  agentSwarmRoles.push(stored);
+  saveAgentSwarmRoles();
+  if (typeof renderSwarmRoles === 'function') renderSwarmRoles();
+  if (typeof rebuildToolDefs === 'function') rebuildToolDefs();
+  return _rmResult({ ok: true, action: 'create', summary: `Created agent role "${stored.id}". Persistence: ${!swarmSettings.agentRolesPersist ? 'memory-only' : (swarmSettings.agentRolesPerConv ? 'per-conversation' : 'global localStorage')}.`, role: _rmFullRole(stored) });
+}
+function _rmUpdate(input) {
+  const id = String(input?.id || '').trim();
+  if (!id) return _rmError('update', 'Missing "id".');
+  const tier = _swarmRoleTier(id);
+  if (tier === 'builtin') return _rmError('update', `Built-in role "${id}" cannot be modified.`);
+  if (tier === 'user') return _rmError('update', `User-authored role "${id}" can only be edited from the Swarms sidebar UI, not by RoleManager.`);
+  if (tier !== 'agent') return _rmError('update', `Role "${id}" not found.`);
+  const idx = agentSwarmRoles.findIndex(r => r.id === id);
+  if (idx < 0) return _rmError('update', `Agent role "${id}" not found.`);
+  const prev = agentSwarmRoles[idx];
+  const incoming = _rmNormalizeIncomingRole({ ...prev, ...(input?.role || {}), id });
+  if (!incoming) return _rmError('update', 'Missing "role" object.');
+  if (!incoming.name) return _rmError('update', 'role.name is required.');
+  if (!incoming.systemPrompt || incoming.systemPrompt.trim().length < 10) return _rmError('update', 'role.systemPrompt must be at least 10 chars.');
+  if (incoming.allowedHandoffs.includes(id)) return _rmError('update', 'A role cannot hand off to itself.');
+  const substantial = _rmIsSubstantialUpdate(prev, incoming);
+  if (substantial && input?.confirmed !== true) {
+    return _rmResult({ ok: false, action: 'update', needs_confirmation: true, summary: `Substantial change to "${id}" (system prompt or tool/skill set differs significantly). Re-call with confirmed=true to apply.`, role: _rmFullRole(incoming) });
+  }
+  if (input?.dry_run) return _rmResult({ ok: true, action: 'update', dry_run: true, substantial, role: _rmFullRole(incoming) });
+  const next = { ...prev, ...incoming, source: 'agent', createdBy: 'agent', updatedAt: Date.now() };
+  agentSwarmRoles[idx] = next;
+  saveAgentSwarmRoles();
+  if (typeof renderSwarmRoles === 'function') renderSwarmRoles();
+  if (typeof rebuildToolDefs === 'function') rebuildToolDefs();
+  return _rmResult({ ok: true, action: 'update', summary: `Updated agent role "${id}".`, substantial, role: _rmFullRole(next) });
+}
+function _rmDelete(input) {
+  const id = String(input?.id || '').trim();
+  if (!id) return _rmError('delete', 'Missing "id".');
+  const tier = _swarmRoleTier(id);
+  if (tier === 'builtin') return _rmError('delete', `Built-in role "${id}" cannot be deleted.`);
+  if (tier === 'user') return _rmError('delete', `User-authored role "${id}" must be deleted from the Swarms sidebar UI, not by RoleManager.`);
+  if (tier !== 'agent') return _rmError('delete', `Role "${id}" not found.`);
+  if (input?.confirmed !== true) {
+    return _rmResult({ ok: false, action: 'delete', needs_confirmation: true, summary: `Re-call delete with confirmed=true to remove agent role "${id}".` });
+  }
+  if (input?.dry_run) return _rmResult({ ok: true, action: 'delete', dry_run: true, summary: `Would delete agent role "${id}".` });
+  agentSwarmRoles = agentSwarmRoles.filter(r => r.id !== id);
+  saveAgentSwarmRoles();
+  if (typeof renderSwarmRoles === 'function') renderSwarmRoles();
+  if (typeof rebuildToolDefs === 'function') rebuildToolDefs();
+  return _rmResult({ ok: true, action: 'delete', summary: `Deleted agent role "${id}".` });
+}
+function _rmDuplicate(input) {
+  const srcId = String(input?.id || '').trim();
+  if (!srcId) return _rmError('duplicate', 'Missing source "id".');
+  const src = findSwarmRoleAny(srcId);
+  if (!src) return _rmError('duplicate', `Source role "${srcId}" not found.`);
+  let newId = String(input?.newId || '').trim();
+  if (newId) {
+    if (!SWARM_ROLE_ID_PATTERN.test(newId)) return _rmError('duplicate', 'newId must match /^[a-z][a-z0-9-]{0,47}$/.');
+    if (_swarmRoleTier(newId)) return _rmError('duplicate', `newId "${newId}" already exists.`);
+  } else {
+    let baseNew = src.id + '-copy';
+    newId = baseNew;
+    let n = 2;
+    while (_swarmRoleTier(newId)) { newId = baseNew + '-' + n++; }
+  }
+  const copy = {
+    id: newId,
+    name: (src.name || src.id) + ' (copy)',
+    description: src.description || '',
+    systemPrompt: src.systemPrompt || '',
+    allowedTools: Array.isArray(src.allowedTools) ? [...src.allowedTools] : [],
+    allowedHandoffs: Array.isArray(src.allowedHandoffs) ? [...src.allowedHandoffs] : [],
+    bindSkills: Array.isArray(src.bindSkills) ? [...src.bindSkills] : [],
+    maxSteps: src.maxSteps || 6,
+    tokenBudget: src.tokenBudget || 60000,
+    defaultModel: src.defaultModel || undefined,
+    enabled: true,
+    source: 'agent', createdBy: 'agent', createdAt: Date.now(),
+  };
+  if (input?.dry_run) return _rmResult({ ok: true, action: 'duplicate', dry_run: true, role: _rmFullRole(copy), summary: `Would duplicate "${srcId}" into agent role "${newId}".` });
+  agentSwarmRoles.push(copy);
+  saveAgentSwarmRoles();
+  if (typeof renderSwarmRoles === 'function') renderSwarmRoles();
+  if (typeof rebuildToolDefs === 'function') rebuildToolDefs();
+  return _rmResult({ ok: true, action: 'duplicate', summary: `Duplicated "${srcId}" into agent role "${newId}".`, role: _rmFullRole(copy) });
 }
 
 // ─── Blackboard tools (per-swarm-run shared workspace) ─────────────────────
