@@ -189,18 +189,17 @@ Long-term memory stores reusable facts across conversations. Enable it in **Sett
 
 ## Agent Swarm
 
-Opt-in parallel orchestrator-worker fanout. Enable in **Settings → Agent Swarm**.
+Opt-in parallel multi-agent runtime. Enable in **Settings → Agent Swarm**.
 
-- The lead agent gets a `SwarmSpawn` tool. Issuing several `SwarmSpawn` blocks in one turn runs them in parallel (capped by *Max concurrency*, default 3).
-- Built-in roles: **researcher**, **critic**, **writer**, **coder**. Each has its own system prompt, read-only tool whitelist, step cap, and per-worker token budget.
-- Per-turn guards: max workers, total token budget, automatic abort propagation. Plan Mode and Ralph Loop are honored — Ralph + Swarm cannot run together.
-- Set *Worker model override* (e.g. a Haiku/Sonnet) to keep workers cheap while the lead runs on a frontier model.
-- Hooks: `pre_swarm_spawn` (block / modify) and `post_swarm_spawn` (audit / accounting) join the existing 6 lifecycle events.
-- **Handoff chains** (routine-style): a worker can call `SwarmHandoff(target_role, brief)` to pass control to the next role — e.g. `researcher → critic → writer`. Cycles and depth-overflow are rejected. The originating `SwarmSpawn` returns the merged chain to the lead. Default chain cap: 3.
-- **Blackboard** (per-turn shared workspace): workers and the lead can `bb_write` notes/results, `bb_read` / `bb_list` to find them, and `bb_post_task` / `bb_claim` for self-organizing pickup. Each worker's system prompt gets an auto-injected digest of the latest entries — no need to re-fetch every turn. In-memory, scoped to one user turn (cleared on next turn).
-- **Custom roles** (left sidebar **Swarms** panel): create your own worker roles with their own system prompt, tool whitelist, handoff targets, and budgets. Bind installed skills to a role (`bindSkills`) — the skill's tools auto-merge into that worker's allowed set, regardless of whether the skill is globally active. Custom tool names cover MCP / off-list tools. Import / export role packs as JSON. Built-in roles stay read-only; duplicate them as a starting point.
-- **RoleManager tool** (opt-in): when enabled, the lead agent gets a `RoleManager` tool to create / update / delete / duplicate worker roles on demand (e.g. "spin up a `compliance-checker` role for this audit"). Two storage knobs control where agent-created roles live: **Persist** (off = memory-only, lost on reload) and **Save per-conversation** (route to the active conversation's IndexedDB record instead of global localStorage). Built-in and user-authored roles are protected from RoleManager; agent-created roles wear a blue `[agent]` badge in the sidebar and can be deleted manually. Risky operations (delete, large-prompt overwrite) require `confirmed: true`.
-- Best for breadth-first work (multi-source research, comparative analysis). Avoid for tightly coupled refactors.
+- **Fanout** — lead emits several `SwarmSpawn(role, task)` calls in one turn; they run in parallel up to *Max concurrency*. Built-in roles: researcher, critic, writer, coder.
+- **Handoff** — workers chain via `SwarmHandoff(role, brief)`, e.g. `researcher → critic → writer`. Cycles and depth-overflow rejected.
+- **Blackboard** — per-turn shared workspace: `bb_write` / `bb_read` / `bb_list` / `bb_post_task` / `bb_claim`. Latest entries auto-injected into each worker's prompt.
+- **Custom roles** — manage in the left **Swarms** panel: own system prompt, tool whitelist, handoff targets, budgets. `bindSkills` grants any installed skill's tools. JSON import / export.
+- **RoleManager** *(opt-in)* — lead-only tool that creates / updates / deletes / duplicates roles at runtime. Storage choice: memory, global, or per-conversation. Built-in and user-authored roles are protected.
+
+Guards: per-worker and per-turn token budgets, concurrency cap, Plan Mode inheritance, Ralph Loop mutex, recursion blocked. Hooks `pre_swarm_spawn` / `post_swarm_spawn` join the existing six. Set *Worker model override* (e.g. Haiku) to keep workers cheap while the lead runs on a frontier model.
+
+Best for breadth-first work (research, comparison). Skip for tightly coupled refactors.
 
 ---
 

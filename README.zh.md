@@ -190,18 +190,17 @@ Ralph Loop 会在普通回答结束后继续推进同一任务。点击顶栏 **
 
 ## Agent Swarm
 
-可选启用的并行 orchestrator-worker 蜂群。开关位于 **Settings → Agent Swarm**。
+可选启用的并行多 agent 运行时。开关位于 **Settings → Agent Swarm**。
 
-- 启用后 lead agent 拥有 `SwarmSpawn` 工具。一轮内发出多个 `SwarmSpawn` 块会并行执行（默认并发上限 3）。
-- 内置角色：**researcher**、**critic**、**writer**、**coder**，各自有独立的 system prompt、只读工具白名单、最大步数与单 worker token 预算。
-- 单轮护栏：最大 worker 数、总 token 预算、abort 自动传播。Plan Mode 与 Ralph Loop 仍生效，且 Ralph + Swarm 互斥。
-- 可设置 *Worker model override*（如 Haiku / Sonnet）让 worker 跑廉价模型，lead 留给旗舰模型，控制成本。
-- Hooks 新增 `pre_swarm_spawn` / `post_swarm_spawn` 两个事件，可拦截或审计 worker。
-- **Handoff 接力链**（routine 风格）：worker 可调用 `SwarmHandoff(target_role, brief)` 把控制权交给下一角色，例如 `researcher → critic → writer`。环检测、深度超限会被拒绝；最初的 `SwarmSpawn` 会把整条链合并后返回给 lead。默认链长上限 3。
-- **Blackboard 共享工作台**（单轮内）：worker 与 lead 都可 `bb_write` 写笔记/结果，`bb_read` / `bb_list` 检索，`bb_post_task` / `bb_claim` 实现自荐认领协作。每个 worker 启动时自动注入最新条目摘要进 system prompt，省去每轮 bb_list。内存存储，单 user 轮内有效，下一轮自动清空。
-- **自定义角色**（左栏 **Swarms** 面板）：自由定义 worker 角色，配置 system prompt、工具白名单、可接力目标和预算。`bindSkills` 把已安装技能直接绑给角色——技能工具自动并入该 worker 白名单，与 skill 是否全局激活无关。自定义工具名兜底 MCP 或未列出的工具。支持 JSON 导入 / 导出。内置角色只读，可一键复制为副本作为起点。
-- **RoleManager 工具**（可选）：开启后 lead agent 获得 `RoleManager` 工具，可在解决任务过程中按需 create / update / delete / duplicate worker 角色（例如「为这次审计开一个 `compliance-checker` 角色」）。两个存储开关：**持久化**（关 = 仅内存，刷新即没）+ **按对话独立保存**（写入当前 conversation 的 IndexedDB 而非全局 localStorage）。内置与用户编写的角色受保护不会被 RoleManager 改动；agent 创建的角色在侧栏带蓝色 `[agent]` 徽章，可手动删除。删除 / 大改类操作需 `confirmed: true`。
-- 适用于广度优先任务（多源调研、对比分析），不适合紧耦合的代码重构。
+- **Fanout（扇出）**——lead 一轮内发出多个 `SwarmSpawn(role, task)`，按 *Max concurrency* 并行执行。内置角色：researcher、critic、writer、coder。
+- **Handoff（接力）**——worker 调 `SwarmHandoff(role, brief)` 串成 `researcher → critic → writer`；环检测与深度超限会被拒绝。
+- **Blackboard（黑板）**——单轮共享工作台：`bb_write` / `bb_read` / `bb_list` / `bb_post_task` / `bb_claim`，最新条目自动注入 worker prompt。
+- **自定义角色**——左栏 **Swarms** 面板管理：独立 system prompt、工具白名单、handoff 目标、预算；`bindSkills` 直接授予已装技能的工具；支持 JSON 导入/导出。
+- **RoleManager**（可选）——lead 专用工具，可在任务中即时 create / update / delete / duplicate 角色。存储模式三选一：内存 / 全局 / 按对话。内置与用户编写的角色受保护。
+
+护栏：单 worker 与单轮总 token 预算、并发上限、Plan Mode 继承、Ralph 互斥、防递归。Hooks 新增 `pre_swarm_spawn` / `post_swarm_spawn`。可设 *Worker model override*（如 Haiku）让 worker 跑廉价模型、lead 留给旗舰模型。
+
+适用于广度优先任务（多源调研、对比分析），不适合紧耦合的代码重构。
 
 ---
 
