@@ -197,6 +197,7 @@ Ralph Loop 会在普通回答结束后继续推进同一任务。点击顶栏 **
 - 单轮护栏：最大 worker 数、总 token 预算、abort 自动传播。Plan Mode 与 Ralph Loop 仍生效，且 Ralph + Swarm 互斥。
 - 可设置 *Worker model override*（如 Haiku / Sonnet）让 worker 跑廉价模型，lead 留给旗舰模型，控制成本。
 - Hooks 新增 `pre_swarm_spawn` / `post_swarm_spawn` 两个事件，可拦截或审计 worker。
+- **Handoff 接力链**（routine 风格）：worker 可调用 `SwarmHandoff(target_role, brief)` 把控制权交给下一角色，例如 `researcher → critic → writer`。环检测、深度超限会被拒绝；最初的 `SwarmSpawn` 会把整条链合并后返回给 lead。默认链长上限 3。
 - 适用于广度优先任务（多源调研、对比分析），不适合紧耦合的代码重构。
 
 ---

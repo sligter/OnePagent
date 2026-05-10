@@ -196,6 +196,7 @@ Opt-in parallel orchestrator-worker fanout. Enable in **Settings → Agent Swarm
 - Per-turn guards: max workers, total token budget, automatic abort propagation. Plan Mode and Ralph Loop are honored — Ralph + Swarm cannot run together.
 - Set *Worker model override* (e.g. a Haiku/Sonnet) to keep workers cheap while the lead runs on a frontier model.
 - Hooks: `pre_swarm_spawn` (block / modify) and `post_swarm_spawn` (audit / accounting) join the existing 6 lifecycle events.
+- **Handoff chains** (routine-style): a worker can call `SwarmHandoff(target_role, brief)` to pass control to the next role — e.g. `researcher → critic → writer`. Cycles and depth-overflow are rejected. The originating `SwarmSpawn` returns the merged chain to the lead. Default chain cap: 3.
 - Best for breadth-first work (multi-source research, comparative analysis). Avoid for tightly coupled refactors.
 
 ---

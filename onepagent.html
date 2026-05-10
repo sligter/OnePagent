@@ -1659,7 +1659,11 @@ document.addEventListener('DOMContentLoaded', function() {
       <label style="margin-top:0">Worker model override <span style="text-transform:none;color:var(--text-dim);font-weight:400">(empty = inherit lead model; use a cheaper model like haiku/sonnet to control cost)</span></label>
       <input type="text" id="setSwarmWorkerModel" placeholder="claude-haiku-4-5 (or empty)" style="margin-bottom:6px">
       <label style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:11px;color:var(--text-secondary);margin-bottom:6px"><input type="checkbox" id="setSwarmAllowWrite" style="width:auto;margin:0"> <span>Allow write tools in worker roles (default off; safe roles are read-only)</span></label>
-      <div style="font-size:10px;color:var(--text-dim);line-height:1.5;margin-bottom:6px">Built-in roles: <b>researcher</b>, <b>critic</b>, <b>writer</b>, <b>coder</b> (all read-only). The lead agent can issue several <code>SwarmSpawn</code> calls in one turn — they run in parallel up to the concurrency cap. Workers cannot ask the user, use MCP, or spawn more workers. Plan Mode and Ralph Loop are honored as guards.</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+        <label style="margin:0;text-transform:none;letter-spacing:0;font-size:11px;color:var(--text-secondary);flex-shrink:0">Max handoff chain length</label>
+        <input type="number" id="setSwarmMaxHandoffChain" min="1" max="8" placeholder="3" style="width:70px;margin-bottom:0">
+      </div>
+      <div style="font-size:10px;color:var(--text-dim);line-height:1.5;margin-bottom:6px">Built-in roles: <b>researcher</b>, <b>critic</b>, <b>writer</b>, <b>coder</b> (all read-only). The lead agent can issue several <code>SwarmSpawn</code> calls in one turn — they run in parallel up to the concurrency cap. Workers can also chain via <code>SwarmHandoff</code> (researcher → critic → writer; coder → critic → writer). Cycles and depth-overflow are rejected. Workers cannot ask the user, use MCP, or spawn more workers. Plan Mode and Ralph Loop are honored as guards.</div>
 
       <div style="border-top:1px solid var(--border);margin:14px 0 10px"></div>
       <label style="font-weight:600;color:var(--text-primary);text-transform:none;letter-spacing:0;font-size:12px"><svg class="ui-icon" aria-hidden="true"><use href="#i-brain"></use></svg> <span data-i18n="settings.memHeader">Memory</span> <span style="text-transform:none;color:var(--text-dim);font-weight:400" data-i18n="settings.memHeaderHint">(persists facts across conversations)</span></label>
@@ -3240,13 +3244,15 @@ const SUB_AGENT_ALLOWED_TOOLS = new Set(['Read', 'Glob', 'Grep', 'Fetch', 'WebSe
 // ═══════════════════════════════════════════════════════════════════
 const SWARM_KEY = 'ba_swarm_v1';
 const SWARM_TOOL_NAME = 'SwarmSpawn';
+const SWARM_HANDOFF_TOOL_NAME = 'SwarmHandoff';
 // Built-in role library. A role is a worker template: system prompt, tool whitelist, default budgets.
 // Workers spawned via SwarmSpawn run a sub-agent loop scoped by the role.
+// `allowedHandoffs` lists role ids this worker may pass control to via SwarmHandoff (v1.1, routine chains).
 const SWARM_BUILTIN_ROLES = {
-  researcher: { name: 'researcher', description: 'Gathers facts from VFS and the web. Read-only.', allowedTools: ['Read', 'Glob', 'Grep', 'Fetch', 'WebSearch', 'memory_search'], maxSteps: 8, tokenBudget: 80000, systemPrompt: 'You are a focused research worker. Investigate the delegated task using the allowed read-only tools. Cite specific sources (URLs, file paths with line numbers). Do not speculate beyond what tools return.' },
-  critic: { name: 'critic', description: 'Reviews material for gaps, contradictions, weak evidence. Read-only.', allowedTools: ['Read', 'Glob', 'Grep', 'Fetch', 'memory_search'], maxSteps: 6, tokenBudget: 60000, systemPrompt: 'You are a skeptical reviewer. Identify gaps, unsupported claims, contradictions, and missing evidence in the material referenced by the task. Quote the exact passages you challenge. Output a bullet list of concrete issues.' },
-  writer: { name: 'writer', description: 'Synthesizes findings into a polished output. Read-only.', allowedTools: ['Read', 'Glob', 'Grep', 'memory_search'], maxSteps: 5, tokenBudget: 70000, systemPrompt: 'You are a writing worker. Produce the requested output exactly to the requested format. No preamble, no meta-commentary. Pull facts only from material provided in the task and via Read/Grep on the VFS.' },
-  coder: { name: 'coder', description: 'Read-only code analyst (no Write/Edit). Reports findings only.', allowedTools: ['Read', 'Glob', 'Grep', 'memory_search'], maxSteps: 8, tokenBudget: 80000, systemPrompt: 'You are a code analyst worker. Trace the requested behavior across files using Read/Glob/Grep. Cite findings as path:line ranges. Do not propose changes unless explicitly asked.' }
+  researcher: { name: 'researcher', description: 'Gathers facts from VFS and the web. Read-only.', allowedTools: ['Read', 'Glob', 'Grep', 'Fetch', 'WebSearch', 'memory_search'], maxSteps: 8, tokenBudget: 80000, allowedHandoffs: ['critic', 'writer'], systemPrompt: 'You are a focused research worker. Investigate the delegated task using the allowed read-only tools. Cite specific sources (URLs, file paths with line numbers). Do not speculate beyond what tools return.' },
+  critic: { name: 'critic', description: 'Reviews material for gaps, contradictions, weak evidence. Read-only.', allowedTools: ['Read', 'Glob', 'Grep', 'Fetch', 'memory_search'], maxSteps: 6, tokenBudget: 60000, allowedHandoffs: ['writer'], systemPrompt: 'You are a skeptical reviewer. Identify gaps, unsupported claims, contradictions, and missing evidence in the material referenced by the task. Quote the exact passages you challenge. Output a bullet list of concrete issues.' },
+  writer: { name: 'writer', description: 'Synthesizes findings into a polished output. Read-only.', allowedTools: ['Read', 'Glob', 'Grep', 'memory_search'], maxSteps: 5, tokenBudget: 70000, allowedHandoffs: [], systemPrompt: 'You are a writing worker. Produce the requested output exactly to the requested format. No preamble, no meta-commentary. Pull facts only from material provided in the task and via Read/Grep on the VFS.' },
+  coder: { name: 'coder', description: 'Read-only code analyst (no Write/Edit). Reports findings only.', allowedTools: ['Read', 'Glob', 'Grep', 'memory_search'], maxSteps: 8, tokenBudget: 80000, allowedHandoffs: ['critic', 'writer'], systemPrompt: 'You are a code analyst worker. Trace the requested behavior across files using Read/Glob/Grep. Cite findings as path:line ranges. Do not propose changes unless explicitly asked.' }
 };
 const SWARM_DEFAULTS = {
   enabled: false,
@@ -3254,7 +3260,8 @@ const SWARM_DEFAULTS = {
   maxWorkersPerRun: 8,         // hard ceiling per user turn
   totalTokenBudget: 250000,    // sum across all workers in a run
   workerModel: '',             // empty = inherit lead's API_MODEL
-  allowWriteRoles: false       // if true, role.allowedTools may include Write/Edit/Bash etc.
+  allowWriteRoles: false,      // if true, role.allowedTools may include Write/Edit/Bash etc.
+  maxHandoffChain: 3           // worker → handoff → handoff → ... cap (includes the originating worker)
 };
 const SWARM_WRITE_TOOLS = new Set(['Write', 'Edit', 'Bash', 'PythonExec', 'JSExec', 'NodeExec', 'VfsToPyodide', 'PyodideToVfs', 'GenerateImage', 'GenerateVideo']);
 let swarmSettings = { ...SWARM_DEFAULTS };
@@ -3263,11 +3270,16 @@ function saveSwarmSettings() { try { localStorage.setItem(SWARM_KEY, JSON.string
 function getSwarmRole(roleId) {
   const r = SWARM_BUILTIN_ROLES[roleId];
   if (!r) return null;
-  // Strip write tools unless explicitly enabled, regardless of role definition
+  // Clone and normalize. Strip write tools unless explicitly enabled.
+  const out = { ...r, allowedTools: [...(r.allowedTools || [])], allowedHandoffs: [...(r.allowedHandoffs || [])] };
   if (!swarmSettings.allowWriteRoles) {
-    return { ...r, allowedTools: r.allowedTools.filter(t => !SWARM_WRITE_TOOLS.has(t)) };
+    out.allowedTools = out.allowedTools.filter(t => !SWARM_WRITE_TOOLS.has(t));
   }
-  return r;
+  // Auto-grant SwarmHandoff to roles that have any handoff target — keeps role JSON honest.
+  if (out.allowedHandoffs.length && !out.allowedTools.includes(SWARM_HANDOFF_TOOL_NAME)) {
+    out.allowedTools.push(SWARM_HANDOFF_TOOL_NAME);
+  }
+  return out;
 }
 function listSwarmRoles() { return Object.keys(SWARM_BUILTIN_ROLES); }
 // Per-run accounting (lives only for the duration of a user turn)
@@ -6249,14 +6261,15 @@ function renderSubAgents() {
   const running = subAgentRuns.filter(r => r.status === 'running').length;
   if (counts) counts.textContent = running ? `${running} running` : String(subAgentRuns.length);
   el.innerHTML = subAgentRuns.slice(-8).reverse().map(r => {
-    const color = r.status === 'completed' ? 'var(--accent-green,#00ff88)' : r.status === 'error' ? 'var(--accent-red)' : r.status === 'aborted' ? 'var(--text-dim)' : 'var(--accent-orange)';
+    const color = r.status === 'completed' ? 'var(--accent-green,#00ff88)' : r.status === 'error' ? 'var(--accent-red)' : r.status === 'aborted' ? 'var(--text-dim)' : r.status === 'handoff' ? 'var(--accent-blue,#5b8af5)' : 'var(--accent-orange)';
     const task = truncateMiddleText(r.task || 'Sub-agent', 80).replace(/\s+/g, ' ').trim();
     const result = truncateMiddleText(r.resultPreview || r.error || '', 120).replace(/\s+/g, ' ').trim();
     const badge = r.kind === 'swarm' ? `<span style="background:var(--accent-orange);color:#1a1a1a;font-size:9px;padding:1px 5px;border-radius:3px;margin-left:4px">${esc(r.role || 'worker')}</span>` : '';
+    const chainBadge = r.kind === 'swarm' && Array.isArray(r.chainHistory) && r.chainHistory.length ? `<span style="background:var(--accent-blue,#5b8af5);color:#1a1a1a;font-size:9px;padding:1px 5px;border-radius:3px;margin-left:4px">step ${r.chainHistory.length + 1}</span>` : '';
     return `<div class="todo-item" style="padding:5px 6px;font-size:11px;border-bottom:1px solid var(--border)">
       <div style="display:flex;gap:6px;align-items:flex-start">
         <span style="color:${color};flex:none;margin-top:1px">&#x25CF;</span>
-        <span style="flex:1;word-break:break-word;color:var(--text-primary)">${esc(task)}${badge}</span>
+        <span style="flex:1;word-break:break-word;color:var(--text-primary)">${esc(task)}${badge}${chainBadge}</span>
       </div>
       <div style="color:var(--text-dim);font-size:10px;margin-left:14px">${esc(r.status || 'unknown')} · ${Number(r.steps || 0)} steps</div>
       ${result ? `<div style="color:var(--text-secondary);font-size:10px;margin-left:14px;margin-top:3px;word-break:break-word">${esc(result)}</div>` : ''}
@@ -7389,6 +7402,7 @@ function openSettingsModal() {
   document.getElementById('setSwarmTotalBudget').value = String(swarmSettings.totalTokenBudget || SWARM_DEFAULTS.totalTokenBudget);
   document.getElementById('setSwarmWorkerModel').value = swarmSettings.workerModel || '';
   document.getElementById('setSwarmAllowWrite').checked = !!swarmSettings.allowWriteRoles;
+  document.getElementById('setSwarmMaxHandoffChain').value = String(swarmSettings.maxHandoffChain || SWARM_DEFAULTS.maxHandoffChain);
   const mem = { ...MEM_DEFAULTS, ...(s.memory || {}) };
   document.getElementById('setMemEnabled').checked = !!mem.enabled;
   document.getElementById('setMemAutoExtract').checked = !!mem.autoExtract;
@@ -7685,6 +7699,7 @@ async function saveSettings() {
   const swConcRaw = parseInt(document.getElementById('setSwarmConcurrency').value, 10);
   const swMaxRaw = parseInt(document.getElementById('setSwarmMaxWorkers').value, 10);
   const swBudRaw = parseInt(document.getElementById('setSwarmTotalBudget').value, 10);
+  const swChainRaw = parseInt(document.getElementById('setSwarmMaxHandoffChain').value, 10);
   swarmSettings = {
     ...SWARM_DEFAULTS,
     ...swarmSettings,
@@ -7694,6 +7709,7 @@ async function saveSettings() {
     totalTokenBudget: Number.isFinite(swBudRaw) ? Math.min(2000000, Math.max(10000, swBudRaw)) : SWARM_DEFAULTS.totalTokenBudget,
     workerModel: (document.getElementById('setSwarmWorkerModel').value || '').trim(),
     allowWriteRoles: document.getElementById('setSwarmAllowWrite').checked,
+    maxHandoffChain: Number.isFinite(swChainRaw) ? Math.min(8, Math.max(1, swChainRaw)) : SWARM_DEFAULTS.maxHandoffChain,
   };
   saveSwarmSettings();
 
@@ -9843,6 +9859,7 @@ const BASE_TOOLS_ANTHROPIC = [
   { name: 'SwarmSpawn', description: 'Delegate a focused task to a role-scoped swarm worker (e.g. researcher, critic, writer, coder). Issuing multiple SwarmSpawn tool_use blocks in a single turn runs them in PARALLEL up to the configured concurrency cap — prefer this over sequential RunSubAgent calls for breadth-first work. Each worker has its own role contract, tool whitelist, and token budget. Workers cannot spawn workers, ask the user, or use MCP. Available only when Agent Swarm is enabled in Settings.', input_schema: { type: 'object', properties: { role: { type: 'string', description: 'Worker role id. Built-ins: researcher, critic, writer, coder.' }, task: { type: 'string', description: 'Specific objective for this worker (one focused sub-question or sub-task).' }, output_format: { type: 'string', description: 'Required shape of the final answer (e.g. "bulleted list with URL citations", "markdown table with columns X/Y/Z").' }, context: { type: 'string', description: 'Optional background passed to the worker.' } }, required: ['role', 'task'] } },
   { name: 'SwarmStatus', description: 'Inspect the current swarm run: active workers, token usage, recent results. Use when a previous SwarmSpawn batch returned errors and you need to decide whether to retry or stop.', input_schema: { type: 'object', properties: {} } },
   { name: 'SwarmAbort', description: 'Mark the current swarm run as aborted; in-flight workers will exit at their next budget check. Use only when the user signals to stop, or when the task is clearly off-track.', input_schema: { type: 'object', properties: { reason: { type: 'string', description: 'Short reason shown to the user.' } } } },
+  { name: 'SwarmHandoff', description: 'Worker-only routine handoff: pass control to the next role in the chain (OpenAI Swarm-style). Available ONLY inside a swarm worker — the lead agent must use SwarmSpawn instead. After a successful handoff, this worker stops; the next worker receives your final text plus the brief and produces the next link of the chain. The originating SwarmSpawn returns the merged chain output to the lead.', input_schema: { type: 'object', properties: { target_role: { type: 'string', description: 'Next role id. Must be in this role\'s allowedHandoffs list and not already in the current chain.' }, brief: { type: 'string', description: 'What the next worker must do. Be specific and self-contained — assume they only read your final text + this brief.' }, output_format: { type: 'string', description: 'Optional override of the output format requested for the next worker.' } }, required: ['target_role', 'brief'] } },
   { name: 'GenerateImage', description: 'Generate an image from a text prompt, or edit/transform attached images when input_image_paths is provided. Use this directly in normal chat when the user asks for image generation; no special mode switch is required. The prompt must be a complete, polished generation prompt synthesized from the user\'s latest request plus relevant conversation history, not just a verbatim copy of the last message. Saves outputs under /generations and returns generated file paths.', input_schema: { type: 'object', properties: { prompt: { type: 'string', description: 'Complete image prompt or edit instruction, incorporating relevant user requirements and conversation context.' }, input_image_paths: { type: 'array', items: { type: 'string' }, description: 'Optional VFS image paths to use for image-to-image editing or variation.' }, model: { type: 'string', description: 'Optional image model override. Defaults to the provider default image model.' } }, required: ['prompt'] } },
   { name: 'GenerateVideo', description: 'Generate a video from a text prompt, or from an attached image plus prompt when input_image_paths is provided. Use this directly in normal chat when the user asks for video generation; no special mode switch is required. The prompt must be a complete, polished generation prompt synthesized from the user\'s latest request plus relevant conversation history, not just a verbatim copy of the last message. Saves outputs under /generations and returns generated file paths.', input_schema: { type: 'object', properties: { prompt: { type: 'string', description: 'Complete video prompt or animation instruction, incorporating relevant user requirements and conversation context.' }, input_image_paths: { type: 'array', items: { type: 'string' }, description: 'Optional VFS image paths; the first valid image is used for image-to-video.' }, model: { type: 'string', description: 'Optional video model override. Defaults to the provider default video model.' } }, required: ['prompt'] } },
   { name: 'SkillManager', description: 'Manage installed skills in the left Skills panel. Supports listing, inspecting, creating, installing from SKILL.md, JSON, or a GitHub skill folder URL, updating, enabling/disabling, and removing skills. Write actions modify persisted skills and may require confirmed=true for risky operations such as delete, overwrite, executable handlers, tools, scripts, or remote install.', input_schema: { type: 'object', properties: { action: { type: 'string', enum: ['list', 'inspect', 'create', 'install_from_markdown', 'install_from_json', 'install_from_github', 'update', 'set_active', 'remove'], description: 'Skill management action.' }, id: { type: 'string', description: 'Skill id for inspect/update/set_active/remove.' }, name: { type: 'string', description: 'Skill name for inspect/update/set_active/remove.' }, markdown: { type: 'string', description: 'Full SKILL.md content for install_from_markdown.' }, skill: { type: 'object', description: 'Skill object for create or install_from_json.' }, url: { type: 'string', description: 'GitHub repository or folder URL for install_from_github, e.g. https://github.com/owner/repo/tree/main/path/to/skill.' }, repoUrl: { type: 'string', description: 'Alternative GitHub URL field for install_from_github.' }, branch: { type: 'string', description: 'GitHub branch or tag. Optional when the URL includes /tree/<branch>/.' }, path: { type: 'string', description: 'Path to the skill folder in the repository. Optional when the URL includes it.' }, updates: { type: 'object', description: 'Partial fields to update. Renaming is not supported.' }, active: { type: 'boolean', description: 'Desired active state for set_active.' }, dry_run: { type: 'boolean', description: 'Validate and summarize without applying changes.' }, confirmed: { type: 'boolean', description: 'Set true only after explicit user confirmation for risky write operations.' } }, required: ['action'] } },
@@ -9978,7 +9995,7 @@ function rebuildToolDefs(headId = activeEntryId, options = {}) {
     if (t.name === 'GenerateImage') return hasConfiguredDefaultMediaModel('image');
     if (t.name === 'GenerateVideo') return hasConfiguredDefaultMediaModel('video');
     // Swarm tools only when Agent Swarm is enabled
-    if (t.name === 'SwarmSpawn' || t.name === 'SwarmStatus' || t.name === 'SwarmAbort') return !!swarmSettings.enabled;
+    if (t.name === 'SwarmSpawn' || t.name === 'SwarmStatus' || t.name === 'SwarmAbort' || t.name === 'SwarmHandoff') return !!swarmSettings.enabled;
     return true;
   });
   if (pyodideInstance) allToolsAnthropic.push(...PYODIDE_NATIVE_TOOLS);
@@ -10007,7 +10024,7 @@ function rebuildToolDefs(headId = activeEntryId, options = {}) {
 }
 
 function renderToolsGrid() {
-  const icons = { Read: 'i:book', Write: 'i:file-pen', Edit: 'i:pencil', Glob: 'i:search', Grep: 'i:search', Bash: 'i:terminal', PythonExec: 'i:terminal', VfsToPyodide: 'i:terminal', PyodideToVfs: 'i:terminal', JSExec: 'i:terminal', NodeExec: 'i:terminal', WebSearch: 'i:globe', Fetch: 'i:antenna', RunSubAgent: 'i:bolt', SwarmSpawn: 'i:bolt', SwarmStatus: 'i:bolt', SwarmAbort: 'i:x', GenerateImage: 'i:image', GenerateVideo: 'i:film', SkillManager: 'i:wrench', AskUser: 'i:message-circle' };
+  const icons = { Read: 'i:book', Write: 'i:file-pen', Edit: 'i:pencil', Glob: 'i:search', Grep: 'i:search', Bash: 'i:terminal', PythonExec: 'i:terminal', VfsToPyodide: 'i:terminal', PyodideToVfs: 'i:terminal', JSExec: 'i:terminal', NodeExec: 'i:terminal', WebSearch: 'i:globe', Fetch: 'i:antenna', RunSubAgent: 'i:bolt', SwarmSpawn: 'i:bolt', SwarmStatus: 'i:bolt', SwarmAbort: 'i:x', SwarmHandoff: 'i:bolt', GenerateImage: 'i:image', GenerateVideo: 'i:film', SkillManager: 'i:wrench', AskUser: 'i:message-circle' };
   const el = document.getElementById('toolsGrid');
   el.innerHTML = allToolsAnthropic.map(t => {
     const ic = icons[t.name] || 'i:wrench';
@@ -10051,6 +10068,7 @@ async function executeTool(name, input) {
       case 'SwarmSpawn': return await toolSwarmSpawn(input);
       case 'SwarmStatus': return await toolSwarmStatus();
       case 'SwarmAbort': return await toolSwarmAbort(input);
+      case 'SwarmHandoff': return 'Error: SwarmHandoff is a worker-only tool. The lead agent should use SwarmSpawn to delegate to a role; the worker itself decides whether to hand off to the next role.';
       case 'GenerateImage': return hasConfiguredDefaultMediaModel('image') ? await toolGenerateImage(input) : `Error: ${t('media.noModel')}`;
       case 'GenerateVideo': return hasConfiguredDefaultMediaModel('video') ? await toolGenerateVideo(input) : `Error: ${t('media.noModel')}`;
       case 'SkillManager': return await toolSkillManager(input || {});
@@ -10214,7 +10232,11 @@ function getSubAgentSystemPrompt(roleConfig) {
   const fmt = roleConfig.outputFormat || 'Concise text answer with citations.';
   const obj = roleConfig.objective || '(see task body)';
   const done = roleConfig.doneCriteria || 'Stop as soon as the requested output is produced. Do not over-investigate.';
-  return `\n\n[SWARM WORKER MODE — role: ${roleConfig.name}]\n<role_contract>\n  <objective>${obj}</objective>\n  <output_format>${fmt}</output_format>\n  <tools_allowed>${tools}</tools_allowed>\n  <budget>steps≤${roleConfig.maxSteps || 6}, tokens≤${roleConfig.tokenBudget || 60000}</budget>\n  <done_criteria>${done}</done_criteria>\n</role_contract>\nYou are a swarm worker. Stay strictly within the role contract. Do not ask the user questions. Do not spawn other workers. Return a self-contained final answer in the requested format.\n${roleConfig.systemPrompt ? '\n[ROLE GUIDANCE]\n' + roleConfig.systemPrompt : ''}`;
+  const handoffs = roleConfig.allowedHandoffs || [];
+  const handoffBlock = handoffs.length
+    ? `\n\n[HANDOFF AVAILABLE]\nYou may pass control to one of these roles when your slice is done and another role is better suited for the next step: ${handoffs.join(', ')}. To do so, call the SwarmHandoff tool with { target_role, brief, output_format? }. After SwarmHandoff returns, do NOT continue working — the next worker takes over. Use handoff sparingly: only when your output is genuinely insufficient on its own. If your task is fully answered, just produce the final answer instead.`
+    : '';
+  return `\n\n[SWARM WORKER MODE — role: ${roleConfig.name}]\n<role_contract>\n  <objective>${obj}</objective>\n  <output_format>${fmt}</output_format>\n  <tools_allowed>${tools}</tools_allowed>\n  <budget>steps≤${roleConfig.maxSteps || 6}, tokens≤${roleConfig.tokenBudget || 60000}</budget>\n  <done_criteria>${done}</done_criteria>\n</role_contract>\nYou are a swarm worker. Stay strictly within the role contract. Do not ask the user questions. Do not spawn other workers. Return a self-contained final answer in the requested format.${handoffBlock}\n${roleConfig.systemPrompt ? '\n[ROLE GUIDANCE]\n' + roleConfig.systemPrompt : ''}`;
 }
 async function buildSubAgentRequestBody(subMessages, headId, options = {}) {
   const parts = await collectRequestContextParts(subMessages, headId, { readOnlyMemory: true, skipToolRender: true, memoryRecallKey: options.memoryRecallKey, microCompact: options.microCompact || {} });
@@ -10236,6 +10258,29 @@ async function executeSubAgentTool(name, input, run, roleConfig) {
   const allowed = getSubAgentAllowedToolNames(roleConfig);
   if (name === SUB_AGENT_TOOL_NAME) return { output: 'Error: Sub-agents cannot spawn other sub-agents.', isError: true };
   if (name === SWARM_TOOL_NAME) return { output: 'Error: Swarm workers cannot spawn other workers.', isError: true };
+  // Handoff: validate and stash a pendingHandoff signal on the run; the loop unwinds at end of step.
+  if (name === SWARM_HANDOFF_TOOL_NAME) {
+    if (!roleConfig) return { output: 'Error: SwarmHandoff is only available to swarm workers.', isError: true };
+    const target = String(input?.target_role || input?.role || '').trim();
+    const brief = String(input?.brief || input?.task || '').trim();
+    const outputFormat = String(input?.output_format || '').trim();
+    if (!target) return { output: 'Error: SwarmHandoff requires "target_role".', isError: true };
+    if (!brief) return { output: 'Error: SwarmHandoff requires "brief" describing what the next worker must do.', isError: true };
+    const allowedHandoffs = roleConfig.allowedHandoffs || [];
+    if (!allowedHandoffs.includes(target)) return { output: `Error: Role "${roleConfig.name}" cannot hand off to "${target}". Allowed targets: ${allowedHandoffs.join(', ') || '(none)'}.`, isError: true };
+    const targetRole = getSwarmRole(target);
+    if (!targetRole) return { output: `Error: Unknown handoff target role "${target}".`, isError: true };
+    // Cycle detection: target must not appear in the chain history already traversed.
+    const chainRoles = (run.chainHistory || []).map(c => c.role);
+    if (chainRoles.includes(target)) return { output: `Error: Handoff cycle detected — role "${target}" already participated in this chain (${chainRoles.join(' → ')}).`, isError: true };
+    const maxChain = Number(swarmSettings.maxHandoffChain) || SWARM_DEFAULTS.maxHandoffChain;
+    if (chainRoles.length + 1 >= maxChain) return { output: `Error: Handoff chain would exceed max length ${maxChain} (current: ${chainRoles.join(' → ')}).`, isError: true };
+    run.pendingHandoff = { target, brief, outputFormat };
+    run.toolCalls.push({ name, inputPreview: truncateMiddleText(JSON.stringify(input || {}), 500), outputPreview: `→ handoff to ${target}`, isError: false, at: Date.now() });
+    run.resultPreview = `→ handoff to ${target}`;
+    renderSubAgents();
+    return { output: `Handoff queued. Control will transfer to "${target}" after this step. Stop working now and emit no further tool calls.`, isError: false };
+  }
   if (disabledTools.has(name)) return { output: `Error: Tool "${name}" is disabled.`, isError: true };
   if (!allowed.has(name)) return { output: `Error: Tool "${name}" is not in the allowed set for this worker.`, isError: true };
   let out;
@@ -10304,6 +10349,13 @@ async function runSubAgentLoop({ run, task, context, maxSteps, roleConfig, model
         : { type: 'tool_result', tool_use_id: tu.id, content: toolResult.output });
     }
     subMessages.push({ role: 'user', content: toolResults });
+    // Handoff signal: the worker called SwarmHandoff this step. Unwind immediately so the
+    // chain runner in toolSwarmSpawn can launch the next worker with the brief.
+    if (run.pendingHandoff) {
+      const ho = run.pendingHandoff;
+      run.pendingHandoff = null;
+      return { ok: true, text: finalText || '(no final text before handoff)', steps: step, tokens: workerTokens, handoff: ho };
+    }
   }
   return { ok: false, text: `Sub-agent reached the ${maxSteps}-step limit.\n\n${finalText || 'No final answer was produced.'}`, steps: maxSteps, tokens: workerTokens };
 }
@@ -10346,58 +10398,90 @@ async function toolRunSubAgent(input) {
 }
 
 // ─── Swarm tools ────────────────────────────────────────────────────────────
-async function toolSwarmSpawn(input) {
-  if (!swarmSettings.enabled) return 'Error: Agent Swarm is disabled. Enable it in Settings → Swarm.';
-  if (ralphRun?.active) return 'Error: Swarm is disabled while Ralph Loop is active. Stop Ralph first.';
-  const roleId = String(input?.role || '').trim();
+// Run a single worker. Returns { run, result } where result may carry a `handoff` field.
+async function _runOneSwarmWorker({ roleId, task, outputFormat, context, chainHistory }) {
   const role = getSwarmRole(roleId);
-  if (!role) return `Error: Unknown role "${roleId}". Available: ${listSwarmRoles().join(', ')}.`;
-  const task = String(input?.task || '').trim();
-  if (!task) return 'Error: "task" is required.';
-  const outputFormat = String(input?.output_format || '').trim();
-  const context = String(input?.context || '').trim();
-  if (!swarmRunActive) startSwarmRun();
+  if (!role) return { error: `Unknown role "${roleId}". Available: ${listSwarmRoles().join(', ')}.` };
   if (swarmRunActive.workerCount >= swarmSettings.maxWorkersPerRun) {
-    return `Error: Swarm worker cap reached (${swarmSettings.maxWorkersPerRun} per turn).`;
+    return { error: `Swarm worker cap reached (${swarmSettings.maxWorkersPerRun} per turn).` };
   }
   if (swarmRunActive.aborted) {
-    return `Error: Swarm run aborted: ${swarmRunActive.abortedReason || 'budget exhausted'}.`;
+    return { error: `Swarm run aborted: ${swarmRunActive.abortedReason || 'budget exhausted'}.` };
   }
   swarmRunActive.workerCount++;
-  // Hook: pre_swarm_spawn — may block or modify input
-  const preCtx = await runHooks('pre_swarm_spawn', { role: roleId, task, output_format: outputFormat, context, runId: swarmRunActive.id });
-  if (preCtx._blocked) return `Error: Swarm spawn blocked by hook [${preCtx._blocked.by}]: ${preCtx._blocked.reason}`;
+  const preCtx = await runHooks('pre_swarm_spawn', { role: roleId, task, output_format: outputFormat, context, runId: swarmRunActive.id, chainHistory });
+  if (preCtx._blocked) return { error: `Swarm spawn blocked by hook [${preCtx._blocked.by}]: ${preCtx._blocked.reason}` };
   const effRole = { ...role, objective: task, outputFormat: outputFormat || 'Concise text answer with specific citations.' };
-  const run = { id: genSubAgentRunId(), kind: 'swarm', role: roleId, task: task.slice(0, 2000), context: context.slice(0, 4000), status: 'running', startedAt: Date.now(), finishedAt: null, steps: 0, toolCalls: [], resultPreview: '', error: null };
+  const run = { id: genSubAgentRunId(), kind: 'swarm', role: roleId, task: task.slice(0, 2000), context: (context || '').slice(0, 4000), status: 'running', startedAt: Date.now(), finishedAt: null, steps: 0, toolCalls: [], resultPreview: '', error: null, chainHistory: chainHistory ? [...chainHistory] : [], handoffFrom: chainHistory && chainHistory.length ? chainHistory[chainHistory.length - 1].id : null };
   subAgentRuns.push(run);
   renderSubAgents();
   saveCurrentConv();
   try {
     const modelOverride = swarmSettings.workerModel || undefined;
     const result = await runSubAgentLoop({ run, task: run.task, context: run.context, maxSteps: role.maxSteps, roleConfig: effRole, modelOverride });
-    run.status = result.ok ? 'completed' : 'error';
+    run.status = result.handoff ? 'handoff' : (result.ok ? 'completed' : 'error');
     run.finishedAt = Date.now();
     run.steps = result.steps;
-    run.resultPreview = truncateMiddleText(result.text || '', 500);
+    run.resultPreview = result.handoff ? `→ handoff to ${result.handoff.target}` : truncateMiddleText(result.text || '', 500);
     renderSubAgents();
     saveCurrentConv();
-    await runHooks('post_swarm_spawn', { role: roleId, task, runId: swarmRunActive?.id, ok: result.ok, tokens: result.tokens, steps: result.steps });
-    return [
-      `Swarm worker ${result.ok ? 'completed' : 'stopped'}.`,
-      `Role: ${roleId}`,
-      `Run ID: ${run.id}`,
-      `Steps: ${result.steps}  Tokens: ${result.tokens || 0}`,
-      '',
-      truncateMiddleText(result.text || '(no result)', SUB_AGENT_RESULT_MAX_CHARS)
-    ].join('\n');
+    await runHooks('post_swarm_spawn', { role: roleId, task, runId: swarmRunActive?.id, ok: result.ok, tokens: result.tokens, steps: result.steps, handoff: result.handoff || null });
+    return { run, result };
   } catch (e) {
     run.status = isAbortError(e) ? 'aborted' : 'error';
     run.finishedAt = Date.now();
     run.error = e?.message || String(e);
     renderSubAgents();
     saveCurrentConv();
-    return `Error: Swarm worker failed: ${run.error}`;
+    return { run, error: `Swarm worker failed: ${run.error}` };
   }
+}
+
+async function toolSwarmSpawn(input) {
+  if (!swarmSettings.enabled) return 'Error: Agent Swarm is disabled. Enable it in Settings → Swarm.';
+  if (ralphRun?.active) return 'Error: Swarm is disabled while Ralph Loop is active. Stop Ralph first.';
+  const initialRoleId = String(input?.role || '').trim();
+  if (!initialRoleId) return 'Error: "role" is required.';
+  const initialTask = String(input?.task || '').trim();
+  if (!initialTask) return 'Error: "task" is required.';
+  const initialOutputFormat = String(input?.output_format || '').trim();
+  const initialContext = String(input?.context || '').trim();
+  if (!swarmRunActive) startSwarmRun();
+  // Chain runner: each step runs one worker; if it hands off, feed brief + previous result into the next worker.
+  const maxChain = Number(swarmSettings.maxHandoffChain) || SWARM_DEFAULTS.maxHandoffChain;
+  const segments = []; // collected outputs across the chain
+  let nextRoleId = initialRoleId;
+  let nextTask = initialTask;
+  let nextOutputFormat = initialOutputFormat;
+  let nextContext = initialContext;
+  const chainHistory = [];
+  let lastError = null;
+  for (let depth = 0; depth < maxChain; depth++) {
+    const step = await _runOneSwarmWorker({ roleId: nextRoleId, task: nextTask, outputFormat: nextOutputFormat, context: nextContext, chainHistory });
+    if (step.error) { lastError = step.error; break; }
+    const { run, result } = step;
+    chainHistory.push({ id: run.id, role: nextRoleId, ok: !!result.ok, text: result.text || '', tokens: result.tokens || 0, steps: result.steps });
+    segments.push({ role: nextRoleId, ok: !!result.ok, text: result.text || '', steps: result.steps, tokens: result.tokens || 0 });
+    if (!result.handoff) break;
+    // Continue the chain: previous output becomes context for the next worker.
+    nextRoleId = result.handoff.target;
+    nextTask = result.handoff.brief;
+    nextOutputFormat = result.handoff.outputFormat || initialOutputFormat;
+    nextContext = `[Handoff chain so far]\n` + segments.map((s, i) => `--- Step ${i + 1} (${s.role}) ---\n${truncateMiddleText(s.text, 1500)}`).join('\n\n');
+  }
+  // Format the chain result back to the lead.
+  if (!segments.length) return `Error: ${lastError || 'Swarm chain produced no segments.'}`;
+  const totalTokens = segments.reduce((a, s) => a + (s.tokens || 0), 0);
+  const totalSteps = segments.reduce((a, s) => a + (s.steps || 0), 0);
+  const chainLabel = segments.map(s => s.role).join(' → ');
+  const head = segments.length === 1
+    ? `Swarm worker ${segments[0].ok ? 'completed' : 'stopped'}. Role: ${segments[0].role}. Steps: ${segments[0].steps}. Tokens: ${segments[0].tokens}.`
+    : `Swarm chain completed: ${chainLabel}. Total steps: ${totalSteps}. Total tokens: ${totalTokens}.`;
+  const body = segments.length === 1
+    ? truncateMiddleText(segments[0].text || '(no result)', SUB_AGENT_RESULT_MAX_CHARS)
+    : segments.map((s, i) => `[Step ${i + 1} — ${s.role}${s.ok ? '' : ' (stopped)'}]\n${truncateMiddleText(s.text || '(no result)', Math.floor(SUB_AGENT_RESULT_MAX_CHARS / segments.length))}`).join('\n\n');
+  const tail = lastError ? `\n\n[Chain truncated: ${lastError}]` : '';
+  return [head, '', body + tail].join('\n');
 }
 async function toolSwarmStatus() {
   if (!swarmSettings.enabled) return 'Swarm: disabled.';
