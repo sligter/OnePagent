@@ -46,6 +46,7 @@
 | Plan Mode | Agent 先只读调研，生成 Markdown 计划供审批，批准后才执行写入 |
 | Ralph Loop | 无人值守的 continue-until-done 模式，支持完成标记、最大/无限迭代、Stop 和无进展保护 |
 | Sub-agents | 委派有边界的只读调研任务，并在侧栏监控运行状态 |
+| Agent Swarm | 可选启用的并行 orchestrator-worker 蜂群：lead 一轮内发出多个 `SwarmSpawn`，按角色（researcher / critic / writer / coder）并发执行，带 token 预算与并发上限 |
 | Human-in-the-loop | Agent 可在需要用户判断时请求文本、选择或确认 |
 | TodoWrite | Agent 主动维护可视任务清单（pending / in-progress / completed） |
 | Hooks | 用户自定义 JS 处理函数，挂在 Agent 6 个生命周期事件上 |
@@ -184,6 +185,19 @@ Ralph Loop 会在普通回答结束后继续推进同一任务。点击顶栏 **
 - **Human-in-the-loop**：`AskUser` 支持文本、选择和确认，用于不该让模型猜的决策。
 - **Media tools**：图片/视频生成通过工具和配置的生成模型显式触发，不再每轮自动生成。
 - **Diagnostics**：文件系统诊断入口位于 **Settings → Diagnostics**。
+
+---
+
+## Agent Swarm
+
+可选启用的并行 orchestrator-worker 蜂群。开关位于 **Settings → Agent Swarm**。
+
+- 启用后 lead agent 拥有 `SwarmSpawn` 工具。一轮内发出多个 `SwarmSpawn` 块会并行执行（默认并发上限 3）。
+- 内置角色：**researcher**、**critic**、**writer**、**coder**，各自有独立的 system prompt、只读工具白名单、最大步数与单 worker token 预算。
+- 单轮护栏：最大 worker 数、总 token 预算、abort 自动传播。Plan Mode 与 Ralph Loop 仍生效，且 Ralph + Swarm 互斥。
+- 可设置 *Worker model override*（如 Haiku / Sonnet）让 worker 跑廉价模型，lead 留给旗舰模型，控制成本。
+- Hooks 新增 `pre_swarm_spawn` / `post_swarm_spawn` 两个事件，可拦截或审计 worker。
+- 适用于广度优先任务（多源调研、对比分析），不适合紧耦合的代码重构。
 
 ---
 
