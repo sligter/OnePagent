@@ -197,6 +197,7 @@ Opt-in parallel orchestrator-worker fanout. Enable in **Settings → Agent Swarm
 - Set *Worker model override* (e.g. a Haiku/Sonnet) to keep workers cheap while the lead runs on a frontier model.
 - Hooks: `pre_swarm_spawn` (block / modify) and `post_swarm_spawn` (audit / accounting) join the existing 6 lifecycle events.
 - **Handoff chains** (routine-style): a worker can call `SwarmHandoff(target_role, brief)` to pass control to the next role — e.g. `researcher → critic → writer`. Cycles and depth-overflow are rejected. The originating `SwarmSpawn` returns the merged chain to the lead. Default chain cap: 3.
+- **Blackboard** (per-turn shared workspace): workers and the lead can `bb_write` notes/results, `bb_read` / `bb_list` to find them, and `bb_post_task` / `bb_claim` for self-organizing pickup. Each worker's system prompt gets an auto-injected digest of the latest entries — no need to re-fetch every turn. In-memory, scoped to one user turn (cleared on next turn).
 - Best for breadth-first work (multi-source research, comparative analysis). Avoid for tightly coupled refactors.
 
 ---

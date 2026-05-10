@@ -3279,16 +3279,90 @@ function getSwarmRole(roleId) {
   if (out.allowedHandoffs.length && !out.allowedTools.includes(SWARM_HANDOFF_TOOL_NAME)) {
     out.allowedTools.push(SWARM_HANDOFF_TOOL_NAME);
   }
+  // Auto-grant blackboard tools to every swarm worker — the digest mechanism only pays off if workers
+  // can actually read/write. Lead also has these via the regular tool registry.
+  for (const bbTool of ['bb_write', 'bb_read', 'bb_list', 'bb_post_task', 'bb_claim']) {
+    if (!out.allowedTools.includes(bbTool)) out.allowedTools.push(bbTool);
+  }
   return out;
 }
 function listSwarmRoles() { return Object.keys(SWARM_BUILTIN_ROLES); }
-// Per-run accounting (lives only for the duration of a user turn)
-let swarmRunActive = null;     // { id, startedAt, totalTokens, workerCount, aborted }
+// Per-run accounting + blackboard (lives only for the duration of a user turn)
+const SWARM_BB_MAX_ENTRIES = 200;
+const SWARM_BB_MAX_CONTENT_CHARS = 4000;
+const SWARM_BB_DIGEST_LIMIT = 20;       // entries injected into worker system prompt
+const SWARM_BB_DIGEST_CONTENT_PREVIEW = 200;
+let swarmRunActive = null;
 function startSwarmRun() {
-  swarmRunActive = { id: 'swarm_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), startedAt: Date.now(), totalTokens: 0, workerCount: 0, aborted: false, abortedReason: '' };
+  swarmRunActive = {
+    id: 'swarm_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+    startedAt: Date.now(),
+    totalTokens: 0,
+    workerCount: 0,
+    aborted: false,
+    abortedReason: '',
+    blackboard: { entries: [], seq: 0 },
+  };
   return swarmRunActive;
 }
 function endSwarmRun() { swarmRunActive = null; }
+function _bbGet() { return swarmRunActive?.blackboard || null; }
+function _bbAddEntry({ type, key, content, tags, source, sourceRole }) {
+  const bb = _bbGet();
+  if (!bb) return { error: 'No active swarm run.' };
+  if (bb.entries.length >= SWARM_BB_MAX_ENTRIES) return { error: `Blackboard full (${SWARM_BB_MAX_ENTRIES} entries cap).` };
+  const safeContent = (content == null ? '' : String(content)).slice(0, SWARM_BB_MAX_CONTENT_CHARS);
+  bb.seq += 1;
+  const entry = {
+    id: 'bb_' + bb.seq.toString(36),
+    type: type || 'note',
+    key: (key || '').slice(0, 80),
+    content: safeContent,
+    tags: Array.isArray(tags) ? tags.map(t => String(t).slice(0, 40)).slice(0, 8) : [],
+    source: source || null,
+    sourceRole: sourceRole || null,
+    ts: Date.now(),
+    claimedBy: null,
+    claimedRole: null,
+  };
+  bb.entries.push(entry);
+  return { entry };
+}
+function _bbCurrentSourceLabel() {
+  // In a worker context this gets called via executeSubAgentTool which doesn't pass the run object
+  // through global state, so we tag entries with the most recently spawned worker as a best-effort.
+  // For lead-side writes we tag with 'lead'.
+  const lastWorker = [...subAgentRuns].reverse().find(r => r.kind === 'swarm' && r.status === 'running');
+  if (lastWorker) return { source: lastWorker.id, sourceRole: lastWorker.role };
+  return { source: 'lead', sourceRole: 'lead' };
+}
+function _bbFilter({ query, key, tags, type, since, limit }) {
+  const bb = _bbGet();
+  if (!bb) return [];
+  const q = (query || '').toLowerCase().trim();
+  const wantTags = Array.isArray(tags) ? tags.map(t => String(t).toLowerCase()) : [];
+  let out = bb.entries.slice();
+  if (key) out = out.filter(e => e.key === key);
+  if (type) out = out.filter(e => e.type === type);
+  if (since) out = out.filter(e => e.ts >= Number(since));
+  if (wantTags.length) out = out.filter(e => wantTags.every(t => e.tags.includes(t)));
+  if (q) out = out.filter(e => (e.key + ' ' + e.content + ' ' + e.tags.join(' ')).toLowerCase().includes(q));
+  out.sort((a, b) => b.ts - a.ts);
+  if (Number.isFinite(limit) && limit > 0) out = out.slice(0, Math.min(limit, 50));
+  return out;
+}
+function getBlackboardDigestForWorker() {
+  const bb = _bbGet();
+  if (!bb || !bb.entries.length) return '';
+  const recent = bb.entries.slice(-SWARM_BB_DIGEST_LIMIT);
+  const lines = recent.map(e => {
+    const claimed = e.claimedBy ? ` [claimed by ${e.claimedRole || e.claimedBy}]` : '';
+    const tags = e.tags.length ? ' ' + e.tags.map(t => '#' + t).join(' ') : '';
+    const preview = e.content.length > SWARM_BB_DIGEST_CONTENT_PREVIEW ? e.content.slice(0, SWARM_BB_DIGEST_CONTENT_PREVIEW) + '…' : e.content;
+    return `  - [${e.id}] (${e.type}) ${e.key || '(no key)'}${tags}${claimed} :: ${preview.replace(/\s+/g, ' ').trim()}`;
+  });
+  return `\n\n[BLACKBOARD DIGEST — ${recent.length}/${bb.entries.length} most recent entries]\n` + lines.join('\n') + `\n\nUse bb_read / bb_list to fetch full content. Use bb_write to add new findings (use clear keys + tags). Use bb_post_task to broadcast a task other workers in this run can claim. Use bb_claim before working on a posted task to avoid duplication.`;
+}
 let totalTokens = 0;
 let contextTokens = 0;
 let lastUsageInfo = null;
@@ -6253,14 +6327,19 @@ function renderSubAgents() {
   const el = document.getElementById('subAgentsArea');
   const counts = document.getElementById('subAgentCounts');
   if (!el) return;
+  // Blackboard one-line summary (only when swarm enabled and there's something to show)
+  const bb = _bbGet();
+  const bbBanner = (swarmSettings.enabled && bb && bb.entries.length)
+    ? `<div style="font-size:10px;color:var(--accent-blue,#5b8af5);padding:4px 6px;border-bottom:1px solid var(--border)">Blackboard: ${bb.entries.length} entries (` + ['note','result','task'].map(t => `${t}=${bb.entries.filter(e=>e.type===t).length}`).join(', ') + ')</div>'
+    : '';
   if (!subAgentRuns || !subAgentRuns.length) {
-    el.innerHTML = '<div style="font-size:10px;color:var(--text-dim);padding:6px">No sub-agent runs yet.</div>';
+    el.innerHTML = bbBanner + '<div style="font-size:10px;color:var(--text-dim);padding:6px">No sub-agent runs yet.</div>';
     if (counts) counts.textContent = '';
     return;
   }
   const running = subAgentRuns.filter(r => r.status === 'running').length;
   if (counts) counts.textContent = running ? `${running} running` : String(subAgentRuns.length);
-  el.innerHTML = subAgentRuns.slice(-8).reverse().map(r => {
+  el.innerHTML = bbBanner + subAgentRuns.slice(-8).reverse().map(r => {
     const color = r.status === 'completed' ? 'var(--accent-green,#00ff88)' : r.status === 'error' ? 'var(--accent-red)' : r.status === 'aborted' ? 'var(--text-dim)' : r.status === 'handoff' ? 'var(--accent-blue,#5b8af5)' : 'var(--accent-orange)';
     const task = truncateMiddleText(r.task || 'Sub-agent', 80).replace(/\s+/g, ' ').trim();
     const result = truncateMiddleText(r.resultPreview || r.error || '', 120).replace(/\s+/g, ' ').trim();
@@ -9860,6 +9939,11 @@ const BASE_TOOLS_ANTHROPIC = [
   { name: 'SwarmStatus', description: 'Inspect the current swarm run: active workers, token usage, recent results. Use when a previous SwarmSpawn batch returned errors and you need to decide whether to retry or stop.', input_schema: { type: 'object', properties: {} } },
   { name: 'SwarmAbort', description: 'Mark the current swarm run as aborted; in-flight workers will exit at their next budget check. Use only when the user signals to stop, or when the task is clearly off-track.', input_schema: { type: 'object', properties: { reason: { type: 'string', description: 'Short reason shown to the user.' } } } },
   { name: 'SwarmHandoff', description: 'Worker-only routine handoff: pass control to the next role in the chain (OpenAI Swarm-style). Available ONLY inside a swarm worker — the lead agent must use SwarmSpawn instead. After a successful handoff, this worker stops; the next worker receives your final text plus the brief and produces the next link of the chain. The originating SwarmSpawn returns the merged chain output to the lead.', input_schema: { type: 'object', properties: { target_role: { type: 'string', description: 'Next role id. Must be in this role\'s allowedHandoffs list and not already in the current chain.' }, brief: { type: 'string', description: 'What the next worker must do. Be specific and self-contained — assume they only read your final text + this brief.' }, output_format: { type: 'string', description: 'Optional override of the output format requested for the next worker.' } }, required: ['target_role', 'brief'] } },
+  { name: 'bb_write', description: 'Write a note / result to the swarm blackboard (a per-turn shared workspace). Use clear keys (e.g. "tradeoffs/langgraph") and tags so other workers can find it. Append-only — entries are not deleted. Cap: 200 entries per turn, 4000 chars per entry.', input_schema: { type: 'object', properties: { key: { type: 'string', description: 'Short label, e.g. "summary/openai-swarm".' }, content: { type: 'string', description: 'The note or result text.' }, type: { type: 'string', enum: ['note', 'result', 'task'], description: 'Default note. Use result for finished outputs that consumers should pick up; use task only via bb_post_task.' }, tags: { type: 'array', items: { type: 'string' }, description: 'Optional lowercase tags for retrieval.' } }, required: ['content'] } },
+  { name: 'bb_read', description: 'Read full content of matching blackboard entries (newest first). Filter by query (substring), key, type, or tags. Returns up to 20.', input_schema: { type: 'object', properties: { query: { type: 'string', description: 'Substring filter against key + content + tags.' }, key: { type: 'string', description: 'Exact key match.' }, type: { type: 'string', enum: ['note', 'result', 'task'] }, tags: { type: 'array', items: { type: 'string' }, description: 'All tags must be present.' }, since: { type: 'integer', description: 'Unix ms; only entries newer than this.' }, limit: { type: 'integer', description: 'Max entries (default 8, max 20).' } } } },
+  { name: 'bb_list', description: 'List blackboard entries (key, type, source, claim status) without expanding content. Cheap way to survey what other workers have produced before deciding to bb_read.', input_schema: { type: 'object', properties: { query: { type: 'string' }, type: { type: 'string', enum: ['note', 'result', 'task'] }, tags: { type: 'array', items: { type: 'string' } } } } },
+  { name: 'bb_post_task', description: 'Broadcast a task on the blackboard for another worker in this run to claim. Use when work could be done in parallel by another role and you don\'t want to spawn it directly. Returns the task id; consumers call bb_claim(id).', input_schema: { type: 'object', properties: { brief: { type: 'string', description: 'What the task is.' }, key: { type: 'string', description: 'Optional key; auto-generated if omitted.' }, tags: { type: 'array', items: { type: 'string' } } }, required: ['brief'] } },
+  { name: 'bb_claim', description: 'Claim a posted task before working on it. Prevents duplicate work. Returns the brief; write your result back via bb_write({type:"result", key:<task key>, ...}) when done.', input_schema: { type: 'object', properties: { id: { type: 'string', description: 'Blackboard entry id (e.g. bb_a1).' } }, required: ['id'] } },
   { name: 'GenerateImage', description: 'Generate an image from a text prompt, or edit/transform attached images when input_image_paths is provided. Use this directly in normal chat when the user asks for image generation; no special mode switch is required. The prompt must be a complete, polished generation prompt synthesized from the user\'s latest request plus relevant conversation history, not just a verbatim copy of the last message. Saves outputs under /generations and returns generated file paths.', input_schema: { type: 'object', properties: { prompt: { type: 'string', description: 'Complete image prompt or edit instruction, incorporating relevant user requirements and conversation context.' }, input_image_paths: { type: 'array', items: { type: 'string' }, description: 'Optional VFS image paths to use for image-to-image editing or variation.' }, model: { type: 'string', description: 'Optional image model override. Defaults to the provider default image model.' } }, required: ['prompt'] } },
   { name: 'GenerateVideo', description: 'Generate a video from a text prompt, or from an attached image plus prompt when input_image_paths is provided. Use this directly in normal chat when the user asks for video generation; no special mode switch is required. The prompt must be a complete, polished generation prompt synthesized from the user\'s latest request plus relevant conversation history, not just a verbatim copy of the last message. Saves outputs under /generations and returns generated file paths.', input_schema: { type: 'object', properties: { prompt: { type: 'string', description: 'Complete video prompt or animation instruction, incorporating relevant user requirements and conversation context.' }, input_image_paths: { type: 'array', items: { type: 'string' }, description: 'Optional VFS image paths; the first valid image is used for image-to-video.' }, model: { type: 'string', description: 'Optional video model override. Defaults to the provider default video model.' } }, required: ['prompt'] } },
   { name: 'SkillManager', description: 'Manage installed skills in the left Skills panel. Supports listing, inspecting, creating, installing from SKILL.md, JSON, or a GitHub skill folder URL, updating, enabling/disabling, and removing skills. Write actions modify persisted skills and may require confirmed=true for risky operations such as delete, overwrite, executable handlers, tools, scripts, or remote install.', input_schema: { type: 'object', properties: { action: { type: 'string', enum: ['list', 'inspect', 'create', 'install_from_markdown', 'install_from_json', 'install_from_github', 'update', 'set_active', 'remove'], description: 'Skill management action.' }, id: { type: 'string', description: 'Skill id for inspect/update/set_active/remove.' }, name: { type: 'string', description: 'Skill name for inspect/update/set_active/remove.' }, markdown: { type: 'string', description: 'Full SKILL.md content for install_from_markdown.' }, skill: { type: 'object', description: 'Skill object for create or install_from_json.' }, url: { type: 'string', description: 'GitHub repository or folder URL for install_from_github, e.g. https://github.com/owner/repo/tree/main/path/to/skill.' }, repoUrl: { type: 'string', description: 'Alternative GitHub URL field for install_from_github.' }, branch: { type: 'string', description: 'GitHub branch or tag. Optional when the URL includes /tree/<branch>/.' }, path: { type: 'string', description: 'Path to the skill folder in the repository. Optional when the URL includes it.' }, updates: { type: 'object', description: 'Partial fields to update. Renaming is not supported.' }, active: { type: 'boolean', description: 'Desired active state for set_active.' }, dry_run: { type: 'boolean', description: 'Validate and summarize without applying changes.' }, confirmed: { type: 'boolean', description: 'Set true only after explicit user confirmation for risky write operations.' } }, required: ['action'] } },
@@ -9996,6 +10080,7 @@ function rebuildToolDefs(headId = activeEntryId, options = {}) {
     if (t.name === 'GenerateVideo') return hasConfiguredDefaultMediaModel('video');
     // Swarm tools only when Agent Swarm is enabled
     if (t.name === 'SwarmSpawn' || t.name === 'SwarmStatus' || t.name === 'SwarmAbort' || t.name === 'SwarmHandoff') return !!swarmSettings.enabled;
+    if (t.name === 'bb_write' || t.name === 'bb_read' || t.name === 'bb_list' || t.name === 'bb_post_task' || t.name === 'bb_claim') return !!swarmSettings.enabled;
     return true;
   });
   if (pyodideInstance) allToolsAnthropic.push(...PYODIDE_NATIVE_TOOLS);
@@ -10024,7 +10109,7 @@ function rebuildToolDefs(headId = activeEntryId, options = {}) {
 }
 
 function renderToolsGrid() {
-  const icons = { Read: 'i:book', Write: 'i:file-pen', Edit: 'i:pencil', Glob: 'i:search', Grep: 'i:search', Bash: 'i:terminal', PythonExec: 'i:terminal', VfsToPyodide: 'i:terminal', PyodideToVfs: 'i:terminal', JSExec: 'i:terminal', NodeExec: 'i:terminal', WebSearch: 'i:globe', Fetch: 'i:antenna', RunSubAgent: 'i:bolt', SwarmSpawn: 'i:bolt', SwarmStatus: 'i:bolt', SwarmAbort: 'i:x', SwarmHandoff: 'i:bolt', GenerateImage: 'i:image', GenerateVideo: 'i:film', SkillManager: 'i:wrench', AskUser: 'i:message-circle' };
+  const icons = { Read: 'i:book', Write: 'i:file-pen', Edit: 'i:pencil', Glob: 'i:search', Grep: 'i:search', Bash: 'i:terminal', PythonExec: 'i:terminal', VfsToPyodide: 'i:terminal', PyodideToVfs: 'i:terminal', JSExec: 'i:terminal', NodeExec: 'i:terminal', WebSearch: 'i:globe', Fetch: 'i:antenna', RunSubAgent: 'i:bolt', SwarmSpawn: 'i:bolt', SwarmStatus: 'i:bolt', SwarmAbort: 'i:x', SwarmHandoff: 'i:bolt', bb_write: 'i:pencil', bb_read: 'i:book', bb_list: 'i:file-text', bb_post_task: 'i:plus', bb_claim: 'i:check', GenerateImage: 'i:image', GenerateVideo: 'i:film', SkillManager: 'i:wrench', AskUser: 'i:message-circle' };
   const el = document.getElementById('toolsGrid');
   el.innerHTML = allToolsAnthropic.map(t => {
     const ic = icons[t.name] || 'i:wrench';
@@ -10069,6 +10154,11 @@ async function executeTool(name, input) {
       case 'SwarmStatus': return await toolSwarmStatus();
       case 'SwarmAbort': return await toolSwarmAbort(input);
       case 'SwarmHandoff': return 'Error: SwarmHandoff is a worker-only tool. The lead agent should use SwarmSpawn to delegate to a role; the worker itself decides whether to hand off to the next role.';
+      case 'bb_write': return await toolBbWrite(input);
+      case 'bb_read': return await toolBbRead(input);
+      case 'bb_list': return await toolBbList(input);
+      case 'bb_post_task': return await toolBbPostTask(input);
+      case 'bb_claim': return await toolBbClaim(input);
       case 'GenerateImage': return hasConfiguredDefaultMediaModel('image') ? await toolGenerateImage(input) : `Error: ${t('media.noModel')}`;
       case 'GenerateVideo': return hasConfiguredDefaultMediaModel('video') ? await toolGenerateVideo(input) : `Error: ${t('media.noModel')}`;
       case 'SkillManager': return await toolSkillManager(input || {});
@@ -10244,6 +10334,10 @@ async function buildSubAgentRequestBody(subMessages, headId, options = {}) {
   parts.anthropicTools = (parts.anthropicTools || []).filter(t => allowed.has(t.name) && t.name !== SUB_AGENT_TOOL_NAME && t.name !== SWARM_TOOL_NAME);
   parts.openaiTools = (parts.openaiTools || []).filter(t => allowed.has(t.function?.name) && t.function?.name !== SUB_AGENT_TOOL_NAME && t.function?.name !== SWARM_TOOL_NAME);
   parts.volatileSystemPrompt = (parts.volatileSystemPrompt || '') + getSubAgentSystemPrompt(options.roleConfig);
+  // Inject the live blackboard digest so the worker doesn't have to bb_list before deciding what to do.
+  if (options.roleConfig && swarmSettings.enabled && swarmRunActive) {
+    parts.volatileSystemPrompt += getBlackboardDigestForWorker();
+  }
   parts.systemPrompt = (parts.stableSystemPrompt || '') + parts.volatileSystemPrompt;
   const body = assembleRequestBodyFromParts(parts);
   if (options.modelOverride) body.model = options.modelOverride;
@@ -10488,10 +10582,18 @@ async function toolSwarmStatus() {
   const swarmRuns = subAgentRuns.filter(r => r.kind === 'swarm');
   const running = swarmRuns.filter(r => r.status === 'running');
   const lines = [
-    `Swarm: enabled (concurrency=${swarmSettings.maxConcurrency}, max-workers/run=${swarmSettings.maxWorkersPerRun}, total-budget=${swarmSettings.totalTokenBudget} tokens)`,
+    `Swarm: enabled (concurrency=${swarmSettings.maxConcurrency}, max-workers/run=${swarmSettings.maxWorkersPerRun}, total-budget=${swarmSettings.totalTokenBudget} tokens, max-handoff-chain=${swarmSettings.maxHandoffChain})`,
     `Active run: ${swarmRunActive ? swarmRunActive.id + ' (workers=' + swarmRunActive.workerCount + ', tokens=' + swarmRunActive.totalTokens + (swarmRunActive.aborted ? ', aborted: ' + swarmRunActive.abortedReason : '') + ')' : '(none)'}`,
     `Workers in this conversation: ${swarmRuns.length} (${running.length} running)`
   ];
+  const bb = _bbGet();
+  if (bb && bb.entries.length) {
+    const byType = bb.entries.reduce((a, e) => { a[e.type] = (a[e.type] || 0) + 1; return a; }, {});
+    const openTasks = bb.entries.filter(e => e.type === 'task' && !e.claimedBy).length;
+    lines.push(`Blackboard: ${bb.entries.length} entries (` + Object.entries(byType).map(([k, v]) => k + '=' + v).join(', ') + `, open tasks=${openTasks})`);
+  } else {
+    lines.push('Blackboard: empty');
+  }
   if (swarmRuns.length) {
     lines.push('');
     lines.push('Recent workers:');
@@ -10507,6 +10609,72 @@ async function toolSwarmAbort(input) {
   swarmRunActive.aborted = true;
   swarmRunActive.abortedReason = reason;
   return `Swarm run ${swarmRunActive.id} marked aborted: ${reason}. Workers will exit at their next budget check.`;
+}
+
+// ─── Blackboard tools (per-swarm-run shared workspace) ─────────────────────
+function _bbEntryDisplay(e) {
+  const claimed = e.claimedBy ? ` [claimed by ${e.claimedRole || e.claimedBy}]` : '';
+  const tags = e.tags.length ? ' ' + e.tags.map(t => '#' + t).join(' ') : '';
+  const src = e.sourceRole ? `${e.sourceRole}` : (e.source || 'unknown');
+  return `[${e.id}] (${e.type}) ${e.key || '(no key)'} by ${src}${tags}${claimed}`;
+}
+async function toolBbWrite(input) {
+  if (!swarmSettings.enabled) return 'Error: Agent Swarm is disabled.';
+  if (!swarmRunActive) startSwarmRun();
+  const key = String(input?.key || '').trim();
+  const content = String(input?.content || '').trim();
+  if (!content) return 'Error: bb_write requires "content".';
+  const type = String(input?.type || 'note').trim();
+  if (!['note', 'result', 'task'].includes(type)) return `Error: invalid type "${type}". Use note | result | task.`;
+  const tags = Array.isArray(input?.tags) ? input.tags : [];
+  const src = _bbCurrentSourceLabel();
+  const r = _bbAddEntry({ type, key, content, tags, source: src.source, sourceRole: src.sourceRole });
+  if (r.error) return `Error: ${r.error}`;
+  return `Wrote ${r.entry.id} :: ${type} :: ${key || '(no key)'} (${r.entry.content.length} chars). Total entries: ${swarmRunActive.blackboard.entries.length}.`;
+}
+async function toolBbRead(input) {
+  if (!swarmSettings.enabled) return 'Error: Agent Swarm is disabled.';
+  if (!swarmRunActive) return 'No active swarm run; the blackboard is empty.';
+  const limit = Math.max(1, Math.min(Number(input?.limit) || 8, 20));
+  const matches = _bbFilter({ query: input?.query, key: input?.key, tags: input?.tags, type: input?.type, since: input?.since, limit });
+  if (!matches.length) return 'No matching blackboard entries.';
+  return matches.map(e => `${_bbEntryDisplay(e)}\n${e.content}`).join('\n\n---\n\n');
+}
+async function toolBbList(input) {
+  if (!swarmSettings.enabled) return 'Error: Agent Swarm is disabled.';
+  if (!swarmRunActive) return 'No active swarm run; the blackboard is empty.';
+  const matches = _bbFilter({ query: input?.query, type: input?.type, tags: input?.tags, limit: 50 });
+  if (!matches.length) return 'Blackboard is empty.';
+  const head = `Blackboard: ${swarmRunActive.blackboard.entries.length} entries (showing ${matches.length}, newest first)`;
+  return [head, ...matches.map(_bbEntryDisplay)].join('\n');
+}
+async function toolBbPostTask(input) {
+  if (!swarmSettings.enabled) return 'Error: Agent Swarm is disabled.';
+  if (!swarmRunActive) startSwarmRun();
+  const brief = String(input?.brief || '').trim();
+  if (!brief) return 'Error: bb_post_task requires "brief".';
+  const key = String(input?.key || '').trim() || `task-${swarmRunActive.blackboard.seq + 1}`;
+  const tags = Array.isArray(input?.tags) ? input.tags : [];
+  const src = _bbCurrentSourceLabel();
+  const r = _bbAddEntry({ type: 'task', key, content: brief, tags, source: src.source, sourceRole: src.sourceRole });
+  if (r.error) return `Error: ${r.error}`;
+  return `Posted task ${r.entry.id} (key=${key}). Other workers can call bb_claim with id="${r.entry.id}" to take it.`;
+}
+async function toolBbClaim(input) {
+  if (!swarmSettings.enabled) return 'Error: Agent Swarm is disabled.';
+  if (!swarmRunActive) return 'Error: No active swarm run.';
+  const id = String(input?.id || '').trim();
+  if (!id) return 'Error: bb_claim requires "id".';
+  const bb = _bbGet();
+  const e = bb?.entries.find(x => x.id === id);
+  if (!e) return `Error: No blackboard entry with id "${id}".`;
+  if (e.type !== 'task') return `Error: Entry ${id} is not a task (type=${e.type}).`;
+  if (e.claimedBy) return `Error: Task ${id} already claimed by ${e.claimedRole || e.claimedBy}.`;
+  const src = _bbCurrentSourceLabel();
+  e.claimedBy = src.source;
+  e.claimedRole = src.sourceRole;
+  e.claimedAt = Date.now();
+  return `Claimed task ${id}.\nKey: ${e.key}\nBrief: ${e.content}\n\nWhen finished, write your result with bb_write({type:"result", key:"${e.key}", content:..., tags:["from:${id}"]}).`;
 }
 
 function toolRead(input) {
