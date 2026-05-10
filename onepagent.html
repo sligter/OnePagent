@@ -1274,6 +1274,19 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
     </div>
 
+    <!-- Swarms (custom roles for the Agent Swarm runtime) -->
+    <div class="panel-section" data-section="swarm-roles">
+      <div class="section-title" onclick="toggleSection(this)"><span class="icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-bolt"></use></svg></span> <span data-i18n="section.swarmRoles">SWARMS</span><span class="section-arrow">&#x25BC;</span></div>
+      <div class="section-body">
+        <div class="skills-list" id="swarmRolesList"></div>
+        <div class="skill-install-bar">
+          <button class="skill-install-btn" onclick="openSwarmRoleModal('create')"><svg class="ui-icon" aria-hidden="true"><use href="#i-plus"></use></svg> <span data-i18n="swarms.create">Create</span></button>
+          <button class="skill-install-btn" onclick="importSwarmRolesJsonPrompt()"><svg class="ui-icon" aria-hidden="true"><use href="#i-folder-open"></use></svg> <span data-i18n="swarms.import">Import</span></button>
+          <button class="skill-install-btn" onclick="exportSwarmRolesJson()"><svg class="ui-icon" aria-hidden="true"><use href="#i-file-text"></use></svg> <span data-i18n="swarms.export">Export</span></button>
+        </div>
+      </div>
+    </div>
+
     <!-- Files -->
     <div class="panel-section" data-section="files">
       <div class="section-title" onclick="toggleSection(this)">
@@ -1809,6 +1822,51 @@ document.addEventListener('DOMContentLoaded', function() {
   </div>
 </div>
 
+<!-- Swarm Role Editor Modal -->
+<div class="modal-overlay" id="swarmRoleModal">
+  <div class="modal" style="width:clamp(320px,94vw,720px)">
+    <div class="modal-header">
+      <h3><svg class="ui-icon" aria-hidden="true"><use href="#i-bolt"></use></svg> <span id="swarmRoleModalTitle" data-i18n="swarmRoleModal.addTitle">Add Custom Role</span></h3>
+      <button class="modal-close" onclick="closeSwarmRoleModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <label><span data-i18n="swarmRoleModal.id">Role ID</span> <span style="text-transform:none;color:var(--text-dim);font-weight:400" data-i18n="swarmRoleModal.idHint">(kebab-case; cannot conflict with built-ins; not editable later)</span></label>
+      <input type="text" id="swarmRoleId" placeholder="my-analyst">
+      <label data-i18n="swarmRoleModal.name">Name</label>
+      <input type="text" id="swarmRoleName" placeholder="My Analyst">
+      <label data-i18n="swarmRoleModal.description">Description</label>
+      <input type="text" id="swarmRoleDescription" placeholder="One-line summary of what this role is good at">
+      <label data-i18n="swarmRoleModal.systemPrompt">System prompt (role guidance)</label>
+      <textarea id="swarmRoleSystemPrompt" spellcheck="false" style="min-height:140px;font-family:'JetBrains Mono',monospace" placeholder="You are a focused worker for ... Use tools X / Y. Stop when ..."></textarea>
+      <label><span data-i18n="swarmRoleModal.allowedTools">Allowed base tools</span> <span style="text-transform:none;color:var(--text-dim);font-weight:400" data-i18n="swarmRoleModal.allowedToolsHint">(SwarmSpawn / RunSubAgent are blocked to prevent recursion; bb_*, SwarmHandoff, memory tools auto-grant)</span></label>
+      <div id="swarmRoleToolsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:4px;padding:6px;background:var(--bg-root);border:1px solid var(--border);border-radius:5px;margin-bottom:8px;max-height:180px;overflow-y:auto"></div>
+      <label><span data-i18n="swarmRoleModal.bindSkills">Bind skills</span> <span style="text-transform:none;color:var(--text-dim);font-weight:400" data-i18n="swarmRoleModal.bindSkillsHint">(adds each skill's tools to this worker; skill.active is irrelevant)</span></label>
+      <div id="swarmRoleSkillsList" style="padding:6px;background:var(--bg-root);border:1px solid var(--border);border-radius:5px;margin-bottom:8px;max-height:140px;overflow-y:auto;font-size:11px"></div>
+      <label><span data-i18n="swarmRoleModal.customTools">Custom tool names</span> <span style="text-transform:none;color:var(--text-dim);font-weight:400" data-i18n="swarmRoleModal.customToolsHint">(comma-separated; use this to grant access to MCP tools or any tool not listed above)</span></label>
+      <input type="text" id="swarmRoleCustomTools" placeholder="my_mcp_tool, another_tool">
+      <label><span data-i18n="swarmRoleModal.allowedHandoffs">Allowed handoffs</span> <span style="text-transform:none;color:var(--text-dim);font-weight:400" data-i18n="swarmRoleModal.allowedHandoffsHint">(this worker can pass control to any of these via SwarmHandoff)</span></label>
+      <div id="swarmRoleHandoffsList" style="padding:6px;background:var(--bg-root);border:1px solid var(--border);border-radius:5px;margin-bottom:8px;max-height:120px;overflow-y:auto;font-size:11px"></div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+        <label style="margin:0;flex-shrink:0;text-transform:none;letter-spacing:0;font-size:11px;color:var(--text-secondary)" data-i18n="swarmRoleModal.maxSteps">Max steps</label>
+        <input type="number" id="swarmRoleMaxSteps" min="1" max="30" placeholder="6" style="width:70px;margin:0">
+        <label style="margin:0;flex-shrink:0;text-transform:none;letter-spacing:0;font-size:11px;color:var(--text-secondary)" data-i18n="swarmRoleModal.tokenBudget">Token budget</label>
+        <input type="number" id="swarmRoleTokenBudget" min="5000" max="200000" step="5000" placeholder="60000" style="width:100px;margin:0">
+      </div>
+      <label><span data-i18n="swarmRoleModal.defaultModel">Default model</span> <span style="text-transform:none;color:var(--text-dim);font-weight:400" data-i18n="swarmRoleModal.defaultModelHint">(optional; overrides the global worker model for this role)</span></label>
+      <input type="text" id="swarmRoleDefaultModel" placeholder="claude-haiku-4-5 (or empty)">
+      <label style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:11px;color:var(--text-secondary);margin-bottom:10px"><input type="checkbox" id="swarmRoleEnabled" style="width:auto;margin:0" checked> <span data-i18n="swarmRoleModal.enabled">Enabled (visible to lead via SwarmSpawn)</span></label>
+      <div id="swarmRoleModalStatus" style="font-size:10px;color:var(--accent-red);min-height:14px;margin-bottom:6px"></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="modal-btn primary" onclick="saveSwarmRoleFromModal()" style="flex:1"><svg class="ui-icon" aria-hidden="true"><use href="#i-check"></use></svg> <span data-i18n="modal.save">Save</span></button>
+        <button class="modal-btn secondary" onclick="closeSwarmRoleModal()" style="flex:1" data-i18n="modal.cancel">Cancel</button>
+      </div>
+      <div style="margin-top:10px;font-size:10px;color:var(--text-dim);line-height:1.5" data-i18n="swarmRoleModal.note">
+        Custom roles are visible to the lead agent only when Agent Swarm is enabled in Settings. Plan Mode and the global allowWriteRoles switch still apply on top of any tool you grant here.
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Memory Viewer Modal -->
 <div class="modal-overlay" id="memoryModal">
   <div class="modal" style="width:clamp(320px,96vw,860px)">
@@ -2126,6 +2184,40 @@ const I18N = {
     'settings.swarmAllowWrite': 'Allow write tools in worker roles (default off; safe roles are read-only)',
     'settings.swarmMaxChain': 'Max handoff chain length',
     'settings.swarmDesc': 'Built-in roles: <b>researcher</b>, <b>critic</b>, <b>writer</b>, <b>coder</b> (all read-only). The lead agent can issue several <code>SwarmSpawn</code> calls in one turn — they run in parallel up to the concurrency cap. Workers can also chain via <code>SwarmHandoff</code> (researcher → critic → writer; coder → critic → writer). Cycles and depth-overflow are rejected. Workers cannot ask the user, use MCP, or spawn more workers. Plan Mode and Ralph Loop are honored as guards.',
+    // Swarms sidebar panel + role editor
+    'section.swarmRoles': 'SWARMS',
+    'swarms.create': 'Create',
+    'swarms.import': 'Import',
+    'swarms.export': 'Export',
+    'swarms.empty': 'No roles yet.',
+    'swarms.duplicate': 'Duplicate',
+    'swarms.delete': 'Delete',
+    'swarms.deleteConfirm': 'Delete this custom role?',
+    'swarms.exportEmpty': 'No custom roles to export.',
+    'swarms.importOk': 'Imported {n} role(s).',
+    'swarmRoleModal.addTitle': 'Add Custom Role',
+    'swarmRoleModal.editTitle': 'Edit Custom Role',
+    'swarmRoleModal.id': 'Role ID',
+    'swarmRoleModal.idHint': '(kebab-case; cannot conflict with built-ins; not editable later)',
+    'swarmRoleModal.name': 'Name',
+    'swarmRoleModal.description': 'Description',
+    'swarmRoleModal.systemPrompt': 'System prompt (role guidance)',
+    'swarmRoleModal.allowedTools': 'Allowed base tools',
+    'swarmRoleModal.allowedToolsHint': '(SwarmSpawn / RunSubAgent are blocked to prevent recursion; bb_*, SwarmHandoff, memory tools auto-grant)',
+    'swarmRoleModal.bindSkills': 'Bind skills',
+    'swarmRoleModal.bindSkillsHint': "(adds each skill's tools to this worker; skill.active is irrelevant)",
+    'swarmRoleModal.customTools': 'Custom tool names',
+    'swarmRoleModal.customToolsHint': '(comma-separated; use this to grant access to MCP tools or any tool not listed above)',
+    'swarmRoleModal.allowedHandoffs': 'Allowed handoffs',
+    'swarmRoleModal.allowedHandoffsHint': '(this worker can pass control to any of these via SwarmHandoff)',
+    'swarmRoleModal.maxSteps': 'Max steps',
+    'swarmRoleModal.tokenBudget': 'Token budget',
+    'swarmRoleModal.defaultModel': 'Default model',
+    'swarmRoleModal.defaultModelHint': '(optional; overrides the global worker model for this role)',
+    'swarmRoleModal.enabled': 'Enabled (visible to lead via SwarmSpawn)',
+    'swarmRoleModal.note': 'Custom roles are visible to the lead agent only when Agent Swarm is enabled in Settings. Plan Mode and the global allowWriteRoles switch still apply on top of any tool you grant here.',
+    'swarmRoleModal.noSkills': 'No skills installed.',
+    'swarmRoleModal.noHandoffs': 'No other roles available.',
     // Skill install modal
     'skillModal.title': 'Install Skill',
     'skillModal.tab.market': 'Market',
@@ -2460,6 +2552,40 @@ const I18N = {
     'settings.swarmAllowWrite': '允许 worker 角色使用写工具（默认关，内置角色均为只读）',
     'settings.swarmMaxChain': 'Handoff 链最大长度',
     'settings.swarmDesc': '内置角色：<b>researcher</b>、<b>critic</b>、<b>writer</b>、<b>coder</b>（全部只读）。lead 一轮内可发出多个 <code>SwarmSpawn</code>，按并发上限并行执行。worker 之间也可通过 <code>SwarmHandoff</code> 接力（researcher → critic → writer；coder → critic → writer）。环检测、深度超限会被拒绝。worker 不能向用户提问、不能用 MCP、也不能再启动 worker。Plan Mode 与 Ralph 循环作为护栏继续生效。',
+    // Swarms 侧栏面板 + 角色编辑器
+    'section.swarmRoles': '蜂群',
+    'swarms.create': '创建',
+    'swarms.import': '导入',
+    'swarms.export': '导出',
+    'swarms.empty': '暂无角色。',
+    'swarms.duplicate': '复制',
+    'swarms.delete': '删除',
+    'swarms.deleteConfirm': '删除该自定义角色？',
+    'swarms.exportEmpty': '没有可导出的自定义角色。',
+    'swarms.importOk': '已导入 {n} 个角色。',
+    'swarmRoleModal.addTitle': '添加自定义角色',
+    'swarmRoleModal.editTitle': '编辑自定义角色',
+    'swarmRoleModal.id': '角色 ID',
+    'swarmRoleModal.idHint': '（kebab-case；不能与内置角色冲突；保存后不可改）',
+    'swarmRoleModal.name': '名称',
+    'swarmRoleModal.description': '描述',
+    'swarmRoleModal.systemPrompt': '系统提示（角色行为指引）',
+    'swarmRoleModal.allowedTools': '允许的基础工具',
+    'swarmRoleModal.allowedToolsHint': '（SwarmSpawn / RunSubAgent 强制屏蔽，防递归；bb_*、SwarmHandoff、记忆工具会自动注入）',
+    'swarmRoleModal.bindSkills': '绑定技能',
+    'swarmRoleModal.bindSkillsHint': '（被绑技能的工具会加入该 worker 白名单；与 skill.active 无关）',
+    'swarmRoleModal.customTools': '自定义工具名',
+    'swarmRoleModal.customToolsHint': '（逗号分隔；用来兜底 MCP 或上面列表外的工具）',
+    'swarmRoleModal.allowedHandoffs': '可接力到的角色',
+    'swarmRoleModal.allowedHandoffsHint': '（worker 可通过 SwarmHandoff 把控制权交给以下任意角色）',
+    'swarmRoleModal.maxSteps': '最大步数',
+    'swarmRoleModal.tokenBudget': 'Token 预算',
+    'swarmRoleModal.defaultModel': '默认模型',
+    'swarmRoleModal.defaultModelHint': '（可选；覆盖全局 worker 模型）',
+    'swarmRoleModal.enabled': '启用（lead 通过 SwarmSpawn 可见）',
+    'swarmRoleModal.note': '自定义角色仅在 Settings 中启用 Agent Swarm 后对 lead 可见。Plan Mode 与全局 allowWriteRoles 仍然在你授予的工具之上生效。',
+    'swarmRoleModal.noSkills': '尚未安装任何技能。',
+    'swarmRoleModal.noHandoffs': '没有其它可选角色。',
     // Skill install modal
     'skillModal.title': '安装技能',
     'skillModal.tab.market': '市场',
@@ -3315,14 +3441,50 @@ const SWARM_DEFAULTS = {
   maxHandoffChain: 3           // worker → handoff → handoff → ... cap (includes the originating worker)
 };
 const SWARM_WRITE_TOOLS = new Set(['Write', 'Edit', 'Bash', 'PythonExec', 'JSExec', 'NodeExec', 'VfsToPyodide', 'PyodideToVfs', 'GenerateImage', 'GenerateVideo']);
+// Tools that must NEVER be in a worker's allowed set, regardless of role configuration
+// (would cause infinite recursion: workers spawning workers).
+const SWARM_RECURSIVE_TOOLS = new Set(['SwarmSpawn', 'RunSubAgent', 'SwarmStatus', 'SwarmAbort']);
 let swarmSettings = { ...SWARM_DEFAULTS };
 try { const s = localStorage.getItem(SWARM_KEY); if (s) swarmSettings = { ...SWARM_DEFAULTS, ...(JSON.parse(s) || {}) }; } catch {}
 function saveSwarmSettings() { try { localStorage.setItem(SWARM_KEY, JSON.stringify(swarmSettings)); } catch (e) { console.warn('saveSwarmSettings failed', e); } }
+
+// v3: user-defined custom roles (in addition to SWARM_BUILTIN_ROLES). Persisted to localStorage.
+const SWARM_ROLES_KEY = 'ba_swarm_roles_v1';
+let userSwarmRoles = [];
+try { const s = localStorage.getItem(SWARM_ROLES_KEY); if (s) { const arr = JSON.parse(s); if (Array.isArray(arr)) userSwarmRoles = arr; } } catch {}
+function saveUserSwarmRoles() { try { localStorage.setItem(SWARM_ROLES_KEY, JSON.stringify(userSwarmRoles)); } catch (e) { console.warn('saveUserSwarmRoles failed', e); } }
+// Returns the merged role list (builtins first so they win on id collisions).
+function getAllSwarmRoles() {
+  const builtins = Object.entries(SWARM_BUILTIN_ROLES).map(([id, r]) => ({ id, builtin: true, enabled: true, ...r }));
+  const userVisible = userSwarmRoles.filter(r => r && r.enabled !== false && !SWARM_BUILTIN_ROLES[r.id]);
+  return [...builtins, ...userVisible];
+}
+function findSwarmRoleAny(roleId) {
+  // Returns even disabled custom roles — used by the editor.
+  if (SWARM_BUILTIN_ROLES[roleId]) return { id: roleId, builtin: true, enabled: true, ...SWARM_BUILTIN_ROLES[roleId] };
+  return userSwarmRoles.find(r => r.id === roleId) || null;
+}
 function getSwarmRole(roleId) {
-  const r = SWARM_BUILTIN_ROLES[roleId];
+  const r = getAllSwarmRoles().find(x => x.id === roleId);
   if (!r) return null;
   // Clone and normalize. Strip write tools unless explicitly enabled.
   const out = { ...r, allowedTools: [...(r.allowedTools || [])], allowedHandoffs: [...(r.allowedHandoffs || [])] };
+  // v3: bindSkills → fold each bound skill's tool names into the worker's allowed set.
+  // Skill objects are looked up by id; missing skills are silently skipped (the role survives a
+  // skill being removed). `skillToolHandlers` is built from getAllSkillTools() regardless of
+  // .active, so workers can use bound-skill tools even when the skill isn't globally active.
+  if (Array.isArray(r.bindSkills) && r.bindSkills.length && Array.isArray(skills)) {
+    for (const sid of r.bindSkills) {
+      const sk = skills.find(s => s && s.id === sid);
+      if (!sk || !Array.isArray(sk.tools)) continue;
+      for (const t of sk.tools) {
+        if (t && t.name && !out.allowedTools.includes(t.name)) out.allowedTools.push(t.name);
+      }
+    }
+  }
+  // Defense-in-depth: even if a custom role's allowedTools accidentally lists a recursive tool,
+  // strip it. (UI prevents this; this guards against hand-edited JSON imports.)
+  out.allowedTools = out.allowedTools.filter(t => !SWARM_RECURSIVE_TOOLS.has(t));
   if (!swarmSettings.allowWriteRoles) {
     out.allowedTools = out.allowedTools.filter(t => !SWARM_WRITE_TOOLS.has(t));
   }
@@ -3337,7 +3499,7 @@ function getSwarmRole(roleId) {
   }
   return out;
 }
-function listSwarmRoles() { return Object.keys(SWARM_BUILTIN_ROLES); }
+function listSwarmRoles() { return getAllSwarmRoles().map(r => r.id); }
 // Per-run accounting + blackboard (lives only for the duration of a user turn)
 const SWARM_BB_MAX_ENTRIES = 200;
 const SWARM_BB_MAX_CONTENT_CHARS = 4000;
@@ -8317,6 +8479,7 @@ async function _buildLocalState() {
     mcpCorsProxy,
     disabledTools: disabledTools instanceof Set ? [...disabledTools] : [],
     hooks: Array.isArray(hooks) ? hooks : [],
+    swarmRoles: Array.isArray(userSwarmRoles) ? userSwarmRoles : [],
     wsConfig: { ...(wsConfig || {}) },
     theme: localStorage.getItem('ba_theme') || 'dark',
     language: CURRENT_LANG,
@@ -8421,6 +8584,11 @@ async function _applyRemoteState(remote, objs, blobMap) {
       if (Array.isArray(s.hooks)) {
         hooks = s.hooks;
         saveHooks();
+      }
+      if (Array.isArray(s.swarmRoles)) {
+        userSwarmRoles = s.swarmRoles;
+        saveUserSwarmRoles();
+        if (typeof renderSwarmRoles === 'function') renderSwarmRoles();
       }
       if (s.wsConfig) {
         Object.assign(wsConfig, s.wsConfig);
@@ -10113,6 +10281,309 @@ function renderHooks() {
       <button class="skill-install-btn" style="flex:none;margin:0;padding:2px 6px;font-size:10px" onclick="deleteHook('${h.id}')" title="Delete">&times;</button>
     </div>
   `).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SWARM ROLE EDITOR (v3) — Sidebar list + create/edit modal
+// Roles merge SWARM_BUILTIN_ROLES (read-only) with userSwarmRoles (persisted in
+// localStorage `ba_swarm_roles_v1`). The lead agent only sees enabled roles.
+// ═══════════════════════════════════════════════════════════════════
+const SWARM_ROLE_ID_PATTERN = /^[a-z][a-z0-9-]{0,47}$/;
+let _editingSwarmRoleId = null;
+let _swarmRoleModalIsCreate = false;
+
+function renderSwarmRoles() {
+  const el = document.getElementById('swarmRolesList');
+  if (!el) return;
+  const all = getAllSwarmRoles().concat(userSwarmRoles.filter(r => r && r.enabled === false && !SWARM_BUILTIN_ROLES[r.id]));
+  // Deduplicate while preserving order, but include disabled custom roles for the editor view.
+  const seen = new Set();
+  const visible = [];
+  for (const r of all) {
+    if (!r || seen.has(r.id)) continue;
+    seen.add(r.id);
+    visible.push(r);
+  }
+  if (!visible.length) {
+    el.innerHTML = '<div style="font-size:11px;color:var(--text-dim);padding:4px">' + esc(t('swarms.empty', 'No roles yet.')) + '</div>';
+    return;
+  }
+  el.innerHTML = visible.map(r => {
+    const isBuiltin = !!r.builtin;
+    const enabled = r.enabled !== false;
+    const skillCount = Array.isArray(r.bindSkills) ? r.bindSkills.length : 0;
+    const handoffCount = Array.isArray(r.allowedHandoffs) ? r.allowedHandoffs.length : 0;
+    const meta = [];
+    if (skillCount) meta.push(skillCount + ' skill' + (skillCount > 1 ? 's' : ''));
+    if (handoffCount) meta.push(handoffCount + ' handoff' + (handoffCount > 1 ? 's' : ''));
+    const metaText = meta.length ? ' · ' + meta.join(' · ') : '';
+    const builtinBadge = isBuiltin ? '<span style="background:var(--text-dim);color:#1a1a1a;font-size:9px;padding:1px 5px;border-radius:3px;margin-left:4px">builtin</span>' : '';
+    const titleColor = enabled ? 'var(--text-primary)' : 'var(--text-dim)';
+    const editAction = isBuiltin ? `duplicateSwarmRole('${esc(r.id)}')` : `openSwarmRoleModal('edit','${esc(r.id)}')`;
+    const editLabel = isBuiltin ? t('swarms.duplicate', 'Duplicate') : t('action.edit', 'Edit');
+    return `<div class="hook-item" style="display:flex;align-items:center;gap:6px;cursor:default">
+      <input type="checkbox" ${enabled ? 'checked' : ''} onchange="toggleSwarmRoleEnabled('${esc(r.id)}')" ${isBuiltin ? 'disabled title="Built-in roles are always enabled"' : 'title="Enable / disable"'} style="margin:0;cursor:${isBuiltin ? 'not-allowed' : 'pointer'}">
+      <span class="h-icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-bolt"></use></svg></span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;${enabled ? '' : 'opacity:0.55;'}color:${titleColor}" onclick="${editAction}" title="${esc(editLabel)}">${esc(r.name || r.id)}${builtinBadge} <span style="color:var(--text-dim);font-size:10px">${esc(r.id)}${esc(metaText)}</span></span>
+      <button class="skill-install-btn" style="flex:none;margin:0;padding:2px 6px;font-size:10px" onclick="duplicateSwarmRole('${esc(r.id)}')" title="${esc(t('swarms.duplicate', 'Duplicate'))}">&#x29C9;</button>
+      ${isBuiltin ? '' : `<button class="skill-install-btn" style="flex:none;margin:0;padding:2px 6px;font-size:10px" onclick="deleteSwarmRole('${esc(r.id)}')" title="${esc(t('swarms.delete', 'Delete'))}">&times;</button>`}
+    </div>`;
+  }).join('');
+}
+
+function _setSwarmRoleStatus(msg, isError) {
+  const s = document.getElementById('swarmRoleModalStatus');
+  if (!s) return;
+  s.style.color = isError ? 'var(--accent-red)' : 'var(--text-dim)';
+  s.textContent = msg || '';
+}
+
+function _populateSwarmRoleModalControls(currentRole) {
+  // Tools grid: list base + memory + utility tools, excluding recursive ones and bb_*/SwarmHandoff (auto-granted).
+  const grid = document.getElementById('swarmRoleToolsGrid');
+  const skillsBox = document.getElementById('swarmRoleSkillsList');
+  const handoffsBox = document.getElementById('swarmRoleHandoffsList');
+  if (!grid || !skillsBox || !handoffsBox) return;
+  const autoGranted = new Set(['bb_write', 'bb_read', 'bb_list', 'bb_post_task', 'bb_claim', 'SwarmHandoff']);
+  // Tools that don't make sense inside a swarm worker — hide from the editor.
+  const workerIncompatible = new Set(['AskUser', 'TodoWrite', 'ExitPlanMode', 'SkillManager']);
+  const baseToolNames = (typeof BASE_TOOLS_ANTHROPIC !== 'undefined' ? BASE_TOOLS_ANTHROPIC : [])
+    .map(t => t.name)
+    .filter(n => !SWARM_RECURSIVE_TOOLS.has(n) && !autoGranted.has(n) && !workerIncompatible.has(n));
+  const allowedSet = new Set(currentRole?.allowedTools || []);
+  grid.innerHTML = baseToolNames.map(n => {
+    const isWrite = SWARM_WRITE_TOOLS.has(n);
+    const checked = allowedSet.has(n) ? 'checked' : '';
+    const note = isWrite ? ' <span style="color:var(--accent-orange);font-size:9px">write</span>' : '';
+    return `<label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-secondary);text-transform:none;letter-spacing:0;cursor:pointer;margin:0"><input type="checkbox" data-swarm-tool="${esc(n)}" ${checked} style="width:auto;margin:0">${esc(n)}${note}</label>`;
+  }).join('');
+  // Skills list
+  const installedSkills = Array.isArray(skills) ? skills : [];
+  const boundSkills = new Set(currentRole?.bindSkills || []);
+  if (!installedSkills.length) {
+    skillsBox.innerHTML = '<div style="color:var(--text-dim)">' + esc(t('swarmRoleModal.noSkills', 'No skills installed.')) + '</div>';
+  } else {
+    skillsBox.innerHTML = installedSkills.map(sk => {
+      const checked = boundSkills.has(sk.id) ? 'checked' : '';
+      const toolCount = Array.isArray(sk.tools) ? sk.tools.length : 0;
+      const meta = toolCount ? ` <span style="color:var(--text-dim)">(${toolCount} tool${toolCount > 1 ? 's' : ''})</span>` : ' <span style="color:var(--text-dim)">(no tools)</span>';
+      return `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin:2px 0"><input type="checkbox" data-swarm-skill="${esc(sk.id)}" ${checked} style="width:auto;margin:0">${esc(sk.name || sk.id)}${meta}</label>`;
+    }).join('');
+    // Append "(missing)" markers for bound but uninstalled skills
+    const missing = (currentRole?.bindSkills || []).filter(sid => !installedSkills.some(s => s.id === sid));
+    if (missing.length) {
+      skillsBox.innerHTML += missing.map(sid => `<div style="color:var(--accent-red);margin:2px 0">- ${esc(sid)} (missing)</div>`).join('');
+    }
+  }
+  // Handoff targets: every other role
+  const allRoles = getAllSwarmRoles().concat(userSwarmRoles.filter(r => !SWARM_BUILTIN_ROLES[r.id]));
+  const seen = new Set();
+  const handoffTargets = [];
+  for (const r of allRoles) { if (r && !seen.has(r.id)) { seen.add(r.id); handoffTargets.push(r); } }
+  const allowedHandoffs = new Set(currentRole?.allowedHandoffs || []);
+  const selfId = currentRole?.id || '';
+  handoffsBox.innerHTML = handoffTargets
+    .filter(r => r.id !== selfId)
+    .map(r => {
+      const checked = allowedHandoffs.has(r.id) ? 'checked' : '';
+      return `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin:2px 0"><input type="checkbox" data-swarm-handoff="${esc(r.id)}" ${checked} style="width:auto;margin:0">${esc(r.id)}${r.builtin ? ' <span style="color:var(--text-dim);font-size:10px">[builtin]</span>' : ''}</label>`;
+    })
+    .join('') || '<div style="color:var(--text-dim)">' + esc(t('swarmRoleModal.noHandoffs', 'No other roles available.')) + '</div>';
+}
+
+function openSwarmRoleModal(mode, roleId) {
+  _swarmRoleModalIsCreate = mode !== 'edit';
+  _editingSwarmRoleId = _swarmRoleModalIsCreate ? null : (roleId || null);
+  let current = null;
+  if (!_swarmRoleModalIsCreate && roleId) {
+    current = userSwarmRoles.find(r => r.id === roleId) || null;
+    if (!current) { alert('Role not found: ' + roleId); return; }
+  }
+  document.getElementById('swarmRoleModalTitle').textContent = t(_swarmRoleModalIsCreate ? 'swarmRoleModal.addTitle' : 'swarmRoleModal.editTitle', _swarmRoleModalIsCreate ? 'Add Custom Role' : 'Edit Custom Role');
+  const idEl = document.getElementById('swarmRoleId');
+  idEl.value = current?.id || '';
+  idEl.readOnly = !_swarmRoleModalIsCreate;
+  idEl.style.opacity = _swarmRoleModalIsCreate ? '1' : '0.6';
+  document.getElementById('swarmRoleName').value = current?.name || '';
+  document.getElementById('swarmRoleDescription').value = current?.description || '';
+  document.getElementById('swarmRoleSystemPrompt').value = current?.systemPrompt || '';
+  // Custom tool names: store everything not in the base grid as a comma list
+  const baseToolNames = new Set((typeof BASE_TOOLS_ANTHROPIC !== 'undefined' ? BASE_TOOLS_ANTHROPIC : []).map(t => t.name));
+  const customNames = (current?.allowedTools || []).filter(n => !baseToolNames.has(n) && !['bb_write','bb_read','bb_list','bb_post_task','bb_claim','SwarmHandoff'].includes(n));
+  document.getElementById('swarmRoleCustomTools').value = customNames.join(', ');
+  document.getElementById('swarmRoleMaxSteps').value = String(current?.maxSteps || 6);
+  document.getElementById('swarmRoleTokenBudget').value = String(current?.tokenBudget || 60000);
+  document.getElementById('swarmRoleDefaultModel').value = current?.defaultModel || '';
+  document.getElementById('swarmRoleEnabled').checked = current ? current.enabled !== false : true;
+  _populateSwarmRoleModalControls(current);
+  _setSwarmRoleStatus('');
+  document.getElementById('swarmRoleModal').classList.add('show');
+}
+
+function closeSwarmRoleModal() {
+  document.getElementById('swarmRoleModal').classList.remove('show');
+  _editingSwarmRoleId = null;
+}
+
+function _readSwarmRoleModal() {
+  const id = document.getElementById('swarmRoleId').value.trim();
+  const name = document.getElementById('swarmRoleName').value.trim();
+  const description = document.getElementById('swarmRoleDescription').value.trim();
+  const systemPrompt = document.getElementById('swarmRoleSystemPrompt').value;
+  const enabled = document.getElementById('swarmRoleEnabled').checked;
+  const maxStepsRaw = parseInt(document.getElementById('swarmRoleMaxSteps').value, 10);
+  const tokenBudgetRaw = parseInt(document.getElementById('swarmRoleTokenBudget').value, 10);
+  const defaultModel = document.getElementById('swarmRoleDefaultModel').value.trim();
+  const baseTools = [...document.querySelectorAll('#swarmRoleToolsGrid input[data-swarm-tool]')]
+    .filter(cb => cb.checked).map(cb => cb.getAttribute('data-swarm-tool'));
+  const customStr = document.getElementById('swarmRoleCustomTools').value;
+  const customTools = customStr.split(',').map(s => s.trim()).filter(Boolean);
+  const bindSkills = [...document.querySelectorAll('#swarmRoleSkillsList input[data-swarm-skill]')]
+    .filter(cb => cb.checked).map(cb => cb.getAttribute('data-swarm-skill'));
+  const allowedHandoffs = [...document.querySelectorAll('#swarmRoleHandoffsList input[data-swarm-handoff]')]
+    .filter(cb => cb.checked).map(cb => cb.getAttribute('data-swarm-handoff'));
+  // Merge base + custom (dedupe) and strip any sneakily-typed recursive tools.
+  const allowedTools = [];
+  for (const n of [...baseTools, ...customTools]) {
+    if (!n || allowedTools.includes(n) || SWARM_RECURSIVE_TOOLS.has(n)) continue;
+    allowedTools.push(n);
+  }
+  return {
+    id, name, description, systemPrompt, allowedTools, bindSkills, allowedHandoffs,
+    maxSteps: Number.isFinite(maxStepsRaw) ? Math.min(30, Math.max(1, maxStepsRaw)) : 6,
+    tokenBudget: Number.isFinite(tokenBudgetRaw) ? Math.min(200000, Math.max(5000, tokenBudgetRaw)) : 60000,
+    defaultModel: defaultModel || undefined,
+    enabled,
+  };
+}
+
+function _validateSwarmRoleForSave(role, isCreate) {
+  if (!role.id || !SWARM_ROLE_ID_PATTERN.test(role.id)) return 'ID must be lowercase kebab-case (a-z, 0-9, dash), 1–48 chars, starting with a letter.';
+  if (SWARM_BUILTIN_ROLES[role.id]) return 'ID conflicts with a built-in role: ' + role.id;
+  if (isCreate && userSwarmRoles.some(r => r.id === role.id)) return 'A custom role with this ID already exists.';
+  if (!role.name) return 'Name is required.';
+  if (!role.systemPrompt || role.systemPrompt.trim().length < 10) return 'System prompt must be at least 10 characters.';
+  if (role.allowedHandoffs.includes(role.id)) return 'A role cannot hand off to itself.';
+  return null;
+}
+
+function saveSwarmRoleFromModal() {
+  const role = _readSwarmRoleModal();
+  const err = _validateSwarmRoleForSave(role, _swarmRoleModalIsCreate);
+  if (err) { _setSwarmRoleStatus(err, true); return; }
+  if (_swarmRoleModalIsCreate) {
+    userSwarmRoles.push(role);
+  } else {
+    const idx = userSwarmRoles.findIndex(r => r.id === _editingSwarmRoleId);
+    if (idx >= 0) userSwarmRoles[idx] = { ...userSwarmRoles[idx], ...role, id: userSwarmRoles[idx].id };
+  }
+  saveUserSwarmRoles();
+  renderSwarmRoles();
+  if (typeof rebuildToolDefs === 'function') rebuildToolDefs();
+  closeSwarmRoleModal();
+}
+
+function deleteSwarmRole(id) {
+  if (SWARM_BUILTIN_ROLES[id]) return;
+  if (!confirm(t('swarms.deleteConfirm', 'Delete custom role "' + id + '"?'))) return;
+  userSwarmRoles = userSwarmRoles.filter(r => r.id !== id);
+  saveUserSwarmRoles();
+  renderSwarmRoles();
+  if (typeof rebuildToolDefs === 'function') rebuildToolDefs();
+}
+
+function toggleSwarmRoleEnabled(id) {
+  if (SWARM_BUILTIN_ROLES[id]) return;
+  const r = userSwarmRoles.find(x => x.id === id);
+  if (!r) return;
+  r.enabled = r.enabled === false;
+  saveUserSwarmRoles();
+  renderSwarmRoles();
+}
+
+function duplicateSwarmRole(id) {
+  const src = SWARM_BUILTIN_ROLES[id]
+    ? { id, ...SWARM_BUILTIN_ROLES[id] }
+    : userSwarmRoles.find(r => r.id === id);
+  if (!src) return;
+  // Generate a unique new id like "<id>-copy", "-copy-2", ...
+  let baseNew = src.id + '-copy';
+  let candidate = baseNew;
+  let n = 2;
+  while (SWARM_BUILTIN_ROLES[candidate] || userSwarmRoles.some(r => r.id === candidate)) {
+    candidate = baseNew + '-' + n++;
+  }
+  const copy = {
+    id: candidate,
+    name: (src.name || src.id) + ' (copy)',
+    description: src.description || '',
+    systemPrompt: src.systemPrompt || '',
+    allowedTools: Array.isArray(src.allowedTools) ? [...src.allowedTools] : [],
+    allowedHandoffs: Array.isArray(src.allowedHandoffs) ? [...src.allowedHandoffs] : [],
+    bindSkills: Array.isArray(src.bindSkills) ? [...src.bindSkills] : [],
+    maxSteps: src.maxSteps || 6,
+    tokenBudget: src.tokenBudget || 60000,
+    defaultModel: src.defaultModel || undefined,
+    enabled: true,
+  };
+  userSwarmRoles.push(copy);
+  saveUserSwarmRoles();
+  renderSwarmRoles();
+  openSwarmRoleModal('edit', copy.id);
+}
+
+function exportSwarmRolesJson() {
+  if (!userSwarmRoles.length) { alert(t('swarms.exportEmpty', 'No custom roles to export.')); return; }
+  const blob = new Blob([JSON.stringify(userSwarmRoles, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'onepagent-swarm-roles.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function _validateSwarmRolesArray(arr) {
+  if (!Array.isArray(arr)) return 'JSON must be an array of role objects.';
+  for (const r of arr) {
+    if (!r || typeof r !== 'object') return 'Each role must be an object.';
+    if (!SWARM_ROLE_ID_PATTERN.test(r.id || '')) return 'Invalid id: ' + JSON.stringify(r.id);
+    if (SWARM_BUILTIN_ROLES[r.id]) return 'ID conflicts with built-in role: ' + r.id;
+    if (!r.name || !r.systemPrompt) return 'Role "' + r.id + '" missing name or systemPrompt.';
+  }
+  // Check for internal duplicates
+  const ids = arr.map(r => r.id);
+  if (new Set(ids).size !== ids.length) return 'Duplicate ids in import payload.';
+  return null;
+}
+
+function importSwarmRolesJsonPrompt() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'application/json,.json';
+  input.onchange = async (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    try {
+      const text = await f.text();
+      const arr = JSON.parse(text);
+      const err = _validateSwarmRolesArray(arr);
+      if (err) { alert('Import failed: ' + err); return; }
+      // Merge by id: imported entries replace existing custom roles with the same id.
+      const map = new Map(userSwarmRoles.map(r => [r.id, r]));
+      for (const r of arr) map.set(r.id, { ...r, enabled: r.enabled !== false });
+      userSwarmRoles = [...map.values()];
+      saveUserSwarmRoles();
+      renderSwarmRoles();
+      if (typeof rebuildToolDefs === 'function') rebuildToolDefs();
+      alert(t('swarms.importOk', 'Imported {n} role(s).').replace('{n}', String(arr.length)));
+    } catch (err) {
+      alert('Import failed: ' + (err?.message || String(err)));
+    }
+  };
+  input.click();
 }
 
 function toggleToolEnabled(name) {
@@ -14632,6 +15103,7 @@ marked.setOptions({ gfm: true, breaks: true });
   updateMemoryUI();
   loadWsConfig();
   renderHooks();
+  renderSwarmRoles();
   renderTodos();
   renderSubAgents();
   renderRalphButton();
