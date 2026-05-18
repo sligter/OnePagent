@@ -1708,7 +1708,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <input type="number" id="setDaytonaAutoDelete" min="0" placeholder="1440">
           </div>
         </div>
-        <div style="font-size:10px;color:var(--text-dim);line-height:1.5;margin-top:4px" data-i18n="settings.sandboxNote">When remote sandbox is active, PythonExec / JSExec / Bash all execute inside a Daytona container. One sandbox per conversation, auto-destroyed on new conversation or page unload. Files referenced in tool input are auto-synced before and after each run.</div>
+        <div style="font-size:10px;color:var(--text-dim);line-height:1.5;margin-top:4px" data-i18n="settings.sandboxNote">When remote sandbox is active, only Bash is exposed and it runs inside a Daytona Linux container. PythonExec / JSExec / NodeExec / Pyodide tools are hidden — invoke python3, node, pip, etc. via Bash. The whole VFS is mirrored to /workspace before each call and pulled back after. One sandbox per conversation, auto-destroyed on new conversation or page unload.</div>
       </div>
 
       <div style="border-top:1px solid var(--border);margin:14px 0 10px"></div>
@@ -2316,7 +2316,7 @@ const I18N = {
     'settings.daytonaAutoArchive': 'DAYTONA_AUTO_ARCHIVE_INTERVAL',
     'settings.daytonaAutoDelete': 'DAYTONA_AUTO_DELETE_INTERVAL',
     'settings.daytonaMinutes': '(min)',
-    'settings.sandboxNote': 'When remote sandbox is active, PythonExec / JSExec / Bash all execute inside a Daytona container. One sandbox per conversation, auto-destroyed on new conversation or page unload. Files referenced in tool input are auto-synced before and after each run.',
+    'settings.sandboxNote': 'When remote sandbox is active, only Bash is exposed and it runs inside a Daytona Linux container. PythonExec / JSExec / NodeExec / Pyodide tools are hidden — invoke python3, node, pip, etc. via Bash. The whole VFS is mirrored to /workspace before each call and pulled back after. One sandbox per conversation, auto-destroyed on new conversation or page unload.',
     'settings.privacyNote': 'Settings (including S3 credentials and encryption passphrase) are stored locally in your browser (localStorage). Keys never leave your machine except when sent directly to the configured API endpoints or S3 bucket.',
     // Diagnostics
     'settings.diagnosticsHeader': 'Diagnostics',
@@ -2740,7 +2740,7 @@ const I18N = {
     'settings.daytonaAutoArchive': 'DAYTONA_AUTO_ARCHIVE_INTERVAL — 自动归档间隔',
     'settings.daytonaAutoDelete': 'DAYTONA_AUTO_DELETE_INTERVAL — 自动删除间隔（归档后）',
     'settings.daytonaMinutes': '（分钟）',
-    'settings.sandboxNote': '启用远程沙箱后，PythonExec / JSExec / Bash 都在 Daytona 容器内运行。每个对话一个沙箱，新建对话或关闭页面时自动销毁。工具调用前后会自动同步相关文件。',
+    'settings.sandboxNote': '启用远程沙箱后，仅暴露 Bash，运行在 Daytona Linux 容器内；PythonExec / JSExec / NodeExec / Pyodide 工具会被隐藏 —— 通过 Bash 调用 python3 / node / pip 等。整个 VFS 在每次调用前镜像到 /workspace，调用后拉回。每个对话一个沙箱，新建对话或关闭页面时自动销毁。',
     'settings.privacyNote': '设置（包括 S3 凭据与加密口令）仅保存在本地浏览器 localStorage。密钥只会发送到你配置的 API 端点或 S3 存储桶。',
     // Diagnostics
     'settings.diagnosticsHeader': '诊断',
@@ -12133,14 +12133,13 @@ function rebuildToolDefs(headId = activeEntryId, options = {}) {
     if (t.name === 'bb_write' || t.name === 'bb_read' || t.name === 'bb_list' || t.name === 'bb_post_task' || t.name === 'bb_claim') return !!swarmSettings.enabled;
     // Bash only exposed when a real shell is available (remote sandbox).
     if (t.name === 'Bash') return _remote;
-    // Pyodide-only path tools make no sense in remote mode.
-    if (_remote && (t.name === 'VfsToPyodide' || t.name === 'PyodideToVfs' || t.name === 'NodeExec')) return false;
+    // In remote mode the sandbox is a full Linux container — there is no need
+    // for the in-browser code runners. Everything goes through Bash.
+    if (_remote && (t.name === 'PythonExec' || t.name === 'JSExec' || t.name === 'NodeExec' || t.name === 'VfsToPyodide' || t.name === 'PyodideToVfs')) return false;
     return true;
   }).map(t => {
     if (!_remote) return t;
-    if (t.name === 'PythonExec') return { ...t, description: 'Execute Python code in a remote Daytona sandbox (real Linux container with full Python). The workspace is mounted at /workspace and mirrors files referenced in tool input (auto-synced before and after). Use normal file APIs (open, pathlib, os). pip-installed packages persist for the conversation. Use the packages argument to install pip dependencies.', input_schema: { type: 'object', properties: { code: { type: 'string', description: 'Python code to run.' }, packages: { type: 'array', items: { type: 'string' }, description: 'pip packages to install before running.' } }, required: ['code'] } };
-    if (t.name === 'JSExec') return { ...t, description: 'Execute JavaScript / Node.js code in a remote Daytona sandbox. Use normal Node APIs (fs, path, fetch). Workspace at /workspace.', input_schema: { type: 'object', properties: { code: { type: 'string', description: 'JavaScript/Node code to run.' } }, required: ['code'] } };
-    if (t.name === 'Bash') return { ...t, description: 'Execute a real shell command in the remote Daytona sandbox (Linux). Working directory defaults to /workspace. Full POSIX coreutils and any installed tools available.', input_schema: { type: 'object', properties: { command: { type: 'string', description: 'Shell command to execute.' } }, required: ['command'] } };
+    if (t.name === 'Bash') return { ...t, description: 'Execute a real shell command in the remote Daytona sandbox (Linux container). Working directory defaults to /workspace, which mirrors the entire VFS (files are uploaded before the run and pulled back after). Use this for everything: shell utilities, python3 / pip, node / npm, file ops, network calls, etc. Pip/npm installs and any /workspace changes persist across calls within the same conversation.', input_schema: { type: 'object', properties: { command: { type: 'string', description: 'Shell command to execute.' } }, required: ['command'] } };
     return t;
   });
   if (pyodideInstance) allToolsAnthropic.push(...PYODIDE_NATIVE_TOOLS);
@@ -14667,7 +14666,7 @@ async function collectRequestContextParts(messages = buildConversationFromEntrie
   const pyodideNativePrompt = getPyodideNativeToolPrompt();
   const planPrompt = planMode ? '\n\n[PLAN MODE ACTIVE]\nYou must not execute write-class tools (Write, Edit, Bash, PythonExec, VfsToPyodide, PyodideToVfs, JSExec, NodeExec, MCP tools, or SkillManager write actions). You may use read-only tools (Read, Glob, Grep, WebSearch, Fetch), SkillManager list/inspect, and TodoWrite to investigate. When your plan is complete, call the ExitPlanMode tool with the full plan as Markdown and wait for the user\'s approval. Do not proceed with execution until ExitPlanMode returns an approval message.' : '';
   const ralphPrompt = getRalphLoopPrompt();
-  const sandboxPrompt = isRemoteSandbox() ? '\n\n[REMOTE SANDBOX]\nPythonExec / JSExec / Bash execute inside a real Linux container (Daytona). Workspace mounted at /workspace. Use ordinary file APIs, pip/npm, and shell utilities freely — Pyodide-specific bridges (workspacefs, vfsRead/vfsWrite) do NOT apply here. Files referenced in tool input are auto-synced into the sandbox before each run and pulled back after.' : '';
+  const sandboxPrompt = isRemoteSandbox() ? '\n\n[REMOTE SANDBOX]\nA real Linux container (Daytona) is attached. The ONLY execution tool exposed is Bash — do not look for PythonExec / JSExec / NodeExec / Pyodide tools, they are intentionally disabled in this mode. Run code by invoking interpreters from the shell: `python3 script.py`, `python3 -c "..."`, `node script.js`, `pip install ...`, `npm install ...`, etc. The entire VFS is mirrored at /workspace (uploaded before each Bash call and pulled back after). cwd defaults to /workspace, so reference files by their VFS path with `/workspace` prepended (e.g. VFS `/data.csv` → sandbox `/workspace/data.csv`). Pip/npm installs and any /workspace changes persist across Bash calls in the same conversation.' : '';
   const memPrompt = await getCachedMemRecallForPrompt(projectedMessagesBase, { readOnly: !!options.readOnlyMemory, memoryRecallKey: options.memoryRecallKey });
   rebuildToolDefs(headId, { skipRender: !!options.skipToolRender });
   const anthropicTools = getEnabledToolsAnthropic();
