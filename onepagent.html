@@ -3622,6 +3622,34 @@ async function _daytonaDoFetch(url, opts) {
   return resp.text();
 }
 
+// Poll GET /sandbox/{id} until state is 'started' (or fail fast on 'error').
+// Daytona transitions Creating → Starting → Started; calls to /process/execute
+// before that return exit -1 with an empty body, which makes the failure look
+// like a shell problem when it's really just a race.
+async function _daytonaWaitForSandboxReady(cfg, sandboxId, timeoutMs = 90000) {
+  const start = Date.now();
+  const intervalMs = 1500;
+  let last = null;
+  while (Date.now() - start < timeoutMs) {
+    try {
+      last = await _daytonaApiFetch(cfg, '/sandbox/' + encodeURIComponent(sandboxId), { method: 'GET' });
+    } catch (e) {
+      // Transient fetch error — wait and retry until timeout.
+      await new Promise(r => setTimeout(r, intervalMs));
+      continue;
+    }
+    const state = String(last?.state || '').toLowerCase();
+    if (state === 'started') return last;
+    if (state === 'error') {
+      const reason = last?.errorReason || last?.error_reason || '(no errorReason field)';
+      throw new Error(`Daytona sandbox ${sandboxId} entered error state: ${reason}`);
+    }
+    await new Promise(r => setTimeout(r, intervalMs));
+  }
+  const finalState = String(last?.state || 'unknown');
+  throw new Error(`Daytona sandbox ${sandboxId} did not reach 'started' within ${Math.round(timeoutMs/1000)}s (last state: ${finalState}).`);
+}
+
 const daytonaClient = {
   async ensureSandbox(convId) {
     const cfg = getSandboxConfig();
@@ -3638,6 +3666,11 @@ const daytonaClient = {
       const r = await _daytonaApiFetch(cfg, '/sandbox', { method: 'POST', body: JSON.stringify(body) });
       const sandboxId = r?.id || r?.sandboxId || r?.sandbox?.id;
       if (!sandboxId) throw new Error('Daytona: missing sandbox id in create response');
+      // Poll until the sandbox is actually running; otherwise the first
+      // /process/execute returns exit -1 with an empty body.
+      if (String(r?.state || '').toLowerCase() !== 'started') {
+        await _daytonaWaitForSandboxReady(cfg, sandboxId);
+      }
       window._daytonaSessions[convId] = { sandboxId, createdAt: Date.now(), lastUsed: Date.now(), image: cfg.daytonaImage || '' };
       return sandboxId;
     })().finally(() => { delete _daytonaPending[convId]; });
@@ -8572,12 +8605,19 @@ async function testDaytonaSandbox() {
   status.style.color = 'var(--text-dim)';
   status.textContent = t('settings.sandboxTestRunning', 'Creating sandbox and running echo + uname …');
   let sandboxId = '';
+  let lastState = '';
   try {
     const createBody = { language: 'python' };
     if (cfg.daytonaImage) createBody.snapshot = cfg.daytonaImage;
     const created = await _daytonaApiFetch(cfg, '/sandbox', { method: 'POST', body: JSON.stringify(createBody) });
     sandboxId = created?.id || created?.sandboxId || created?.sandbox?.id || '';
     if (!sandboxId) throw new Error('Daytona create response missing sandbox id.');
+    lastState = String(created?.state || '').toLowerCase();
+    if (lastState !== 'started') {
+      status.textContent = t('settings.sandboxTestRunning', 'Creating sandbox and running echo + uname …') + ` (waiting for state: ${lastState || 'unknown'} → started)`;
+      const ready = await _daytonaWaitForSandboxReady(cfg, sandboxId);
+      lastState = String(ready?.state || '').toLowerCase();
+    }
     const exec = await _daytonaToolboxFetch(cfg, sandboxId, '/process/execute',
       { method: 'POST', body: JSON.stringify({ command: 'echo ok && uname -a', cwd: '/workspace', timeout: 30 }) });
     const norm = _normalizeExecResult(exec);
@@ -8585,7 +8625,8 @@ async function testDaytonaSandbox() {
     const hint = _daytonaShellHint(combined);
     if (hint || norm.exitCode !== 0) {
       status.style.color = 'var(--accent-red, #ff6b6b)';
-      status.textContent = '❌ ' + t('settings.sandboxTestFail', 'Sandbox check failed') + ` (sandbox ${sandboxId}, exit ${norm.exitCode}):\n` + hint + combined.trim();
+      const detail = combined.trim() || '(empty response — raw: ' + JSON.stringify(exec).slice(0, 200) + ')';
+      status.textContent = '❌ ' + t('settings.sandboxTestFail', 'Sandbox check failed') + ` (sandbox ${sandboxId}, state ${lastState || 'unknown'}, exit ${norm.exitCode}):\n` + hint + detail;
     } else {
       status.style.color = 'var(--accent-green, #51cf66)';
       const firstLine = (norm.stdout || '').split('\n').filter(Boolean).slice(0, 3).join('\n');
@@ -8593,7 +8634,7 @@ async function testDaytonaSandbox() {
     }
   } catch (e) {
     status.style.color = 'var(--accent-red, #ff6b6b)';
-    status.textContent = '❌ ' + t('settings.sandboxTestFail', 'Sandbox check failed') + ': ' + (e?.message || e);
+    status.textContent = '❌ ' + t('settings.sandboxTestFail', 'Sandbox check failed') + (lastState ? ` (state ${lastState})` : '') + ': ' + (e?.message || e);
   } finally {
     if (sandboxId) {
       try { await _daytonaApiFetch(cfg, '/sandbox/' + encodeURIComponent(sandboxId), { method: 'DELETE' }); }
