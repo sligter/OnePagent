@@ -3545,10 +3545,18 @@ async function fetchWithRetry(url, options = {}, retryOptions = {}) {
 // ═══════════════════════════════════════════════════════════════════
 // REMOTE SANDBOX (Daytona) — one sandbox per conversation, lazy-created
 // ═══════════════════════════════════════════════════════════════════
-window._daytonaSessions = window._daytonaSessions || {}; // convId -> { sandboxId, createdAt, lastUsed, image }
+window._daytonaSessions = window._daytonaSessions || {}; // convId -> { sandboxId, createdAt, lastUsed, image, syncedIn:Map, syncedOut:Map }
 const _daytonaPending = {};                              // convId -> Promise<sandboxId>
-const DAYTONA_SYNC_MAX_FILES = 50;
-const DAYTONA_SYNC_MAX_BYTES = 5 * 1024 * 1024;
+// Generous safety caps — the user expects the full VFS to live in the sandbox.
+const DAYTONA_SYNC_MAX_FILES = 2000;
+const DAYTONA_SYNC_MAX_BYTES = 100 * 1024 * 1024;
+// Paths excluded from sync (large or session-local).
+const DAYTONA_SYNC_SKIP_PREFIXES = ['/skills/', '/.git/', '/node_modules/', '/.cache/'];
+function _shouldSkipSyncPath(p) {
+  if (!p || p === '/') return true;
+  for (const pre of DAYTONA_SYNC_SKIP_PREFIXES) if (p.startsWith(pre)) return true;
+  return false;
+}
 
 function _daytonaHeaders(cfg, extra) {
   return Object.assign({ 'Authorization': 'Bearer ' + (cfg.daytonaApiKey || '') }, extra || {});
@@ -3718,70 +3726,87 @@ function _base64ToU8(b64) {
   } catch { return new Uint8Array(0); }
 }
 
-// ── Track files touched in the current conversation so syncIn can pre-upload them
-const _remoteRecentlyTouched = new Set();
-function markVfsTouched(p) {
-  if (!p) return;
-  try { _remoteRecentlyTouched.add(normPath(p)); } catch { _remoteRecentlyTouched.add(p); }
-  if (_remoteRecentlyTouched.size > 500) {
-    const first = _remoteRecentlyTouched.values().next().value;
-    _remoteRecentlyTouched.delete(first);
-  }
+// Per-conversation sync state lives on the session object: syncedIn maps local
+// VFS path -> fingerprint, syncedOut maps remote path -> mtime. markVfsTouched
+// is kept as a no-op shim so existing callers don't break.
+function markVfsTouched() {}
+
+function _vfsFingerprint(node) {
+  if (!node || node.type !== 'file') return '';
+  if (node.binary) return 'b:' + (node.hash || ('s' + (node.size || 0)));
+  const size = (node.content || '').length;
+  return 't:' + size + ':' + (node.modified || 0);
 }
 
-function _extractVfsPathsFromInput(input) {
-  const out = new Set();
-  const walk = v => {
-    if (v == null) return;
-    if (typeof v === 'string') {
-      const re = /\/[A-Za-z0-9_.\-/]{1,200}/g;
-      const m = v.match(re);
-      if (m) m.forEach(p => out.add(p));
-    } else if (Array.isArray(v)) v.forEach(walk);
-    else if (typeof v === 'object') Object.values(v).forEach(walk);
-  };
-  walk(input);
-  return [...out];
+function _walkAllVfsFiles() {
+  const out = [];
+  vfsWalk('/', (path, node) => {
+    if (node.type === 'file') out.push({ path, node });
+  });
+  return out;
 }
 
-async function syncVfsToRemote(convId, input) {
-  const candidates = new Set([..._extractVfsPathsFromInput(input), ..._remoteRecentlyTouched]);
-  let pushed = 0, bytesPushed = 0;
-  for (const p of candidates) {
+// Push every VFS file into /workspace, skipping anything whose fingerprint
+// matches the last successful upload for this sandbox.
+async function syncVfsToRemote(convId, _input) {
+  const sess = window._daytonaSessions[convId];
+  if (!sess) return { pushed: 0, skipped: 0, bytesPushed: 0 };
+  if (!sess.syncedIn) sess.syncedIn = new Map();
+  const allFiles = _walkAllVfsFiles();
+  let pushed = 0, skipped = 0, bytesPushed = 0;
+  const presentPaths = new Set();
+  for (const { path, node } of allFiles) {
+    if (_shouldSkipSyncPath(path)) continue;
+    presentPaths.add(path);
     if (pushed >= DAYTONA_SYNC_MAX_FILES || bytesPushed >= DAYTONA_SYNC_MAX_BYTES) break;
-    const st = vfsStat(p);
-    if (!st || st.type !== 'file') continue;
+    const fp = _vfsFingerprint(node);
+    if (sess.syncedIn.get(path) === fp) { skipped++; continue; }
     try {
-      if (st.binary) {
-        const bytes = await vfsGetBinary(p);
+      if (node.binary) {
+        const bytes = await vfsGetBinary(path);
         if (!bytes) continue;
         if (bytesPushed + bytes.length > DAYTONA_SYNC_MAX_BYTES) continue;
-        await daytonaClient.writeFile(convId, '/workspace' + p, bytes);
+        await daytonaClient.writeFile(convId, '/workspace' + path, bytes);
         bytesPushed += bytes.length;
       } else {
-        const r = vfsRead(p);
-        if (r.error) continue;
-        const bytes = new TextEncoder().encode(r.content || '');
-        if (bytesPushed + bytes.length > DAYTONA_SYNC_MAX_BYTES) continue;
-        await daytonaClient.writeFile(convId, '/workspace' + p, r.content);
-        bytesPushed += bytes.length;
+        const text = node.content || '';
+        const byteLen = text.length;
+        if (bytesPushed + byteLen > DAYTONA_SYNC_MAX_BYTES) continue;
+        await daytonaClient.writeFile(convId, '/workspace' + path, text);
+        bytesPushed += byteLen;
       }
+      sess.syncedIn.set(path, fp);
       pushed++;
-    } catch (e) { console.warn('syncIn skip', p, e?.message || e); }
+    } catch (e) { console.warn('syncIn skip', path, e?.message || e); }
   }
-  return { pushed, bytesPushed };
+  // Drop fingerprints for paths that no longer exist locally so a re-created
+  // file later forces a fresh upload.
+  for (const cached of [...sess.syncedIn.keys()]) {
+    if (!presentPaths.has(cached)) sess.syncedIn.delete(cached);
+  }
+  return { pushed, skipped, bytesPushed };
 }
 
-async function syncVfsFromRemote(convId, sinceMs) {
-  let changed;
-  try { changed = await daytonaClient.listChanged(convId, sinceMs); }
-  catch (e) { console.warn('listChanged failed:', e?.message || e); return { pulled: 0 }; }
-  let pulled = 0;
-  for (const f of changed) {
+// Pull every file from the sandbox /workspace that is newer than the last seen
+// mtime (or unknown locally). Apply changes to the VFS.
+async function syncVfsFromRemote(convId, _sinceMs) {
+  const sess = window._daytonaSessions[convId];
+  if (!sess) return { pulled: 0, skipped: 0 };
+  if (!sess.syncedOut) sess.syncedOut = new Map();
+  let entries;
+  try { entries = await daytonaClient.listChanged(convId, 0); }
+  catch (e) { console.warn('listChanged failed:', e?.message || e); return { pulled: 0, skipped: 0 }; }
+  let pulled = 0, skipped = 0;
+  const seen = new Set();
+  for (const f of entries) {
     if (pulled >= DAYTONA_SYNC_MAX_FILES) break;
     const remotePath = f.path;
     if (!remotePath || !remotePath.startsWith('/workspace/')) continue;
     const localPath = remotePath.slice('/workspace'.length) || '/';
+    if (_shouldSkipSyncPath(localPath)) continue;
+    seen.add(remotePath);
+    const prevMtime = sess.syncedOut.get(remotePath) || 0;
+    if (prevMtime && f.mtime && f.mtime <= prevMtime) { skipped++; continue; }
     try {
       const bytes = await daytonaClient.readFile(convId, remotePath, true);
       const isText = _looksLikeText(bytes);
@@ -3791,11 +3816,19 @@ async function syncVfsFromRemote(convId, sinceMs) {
       } else {
         await vfsWriteBinary(localPath, bytes);
       }
-      markVfsTouched(localPath);
+      sess.syncedOut.set(remotePath, f.mtime || Date.now());
+      // Keep the inbound fingerprint in sync so the next push doesn't re-upload
+      // a file we just pulled.
+      const node = vfsResolve(localPath);
+      if (node) sess.syncedIn.set(localPath, _vfsFingerprint(node));
       pulled++;
     } catch (e) { console.warn('syncOut skip', remotePath, e?.message || e); }
   }
-  return { pulled };
+  // Forget remote files that disappeared, so a re-created file gets pulled.
+  for (const cached of [...sess.syncedOut.keys()]) {
+    if (!seen.has(cached)) sess.syncedOut.delete(cached);
+  }
+  return { pulled, skipped };
 }
 
 function _looksLikeText(bytes) {
@@ -4860,7 +4893,6 @@ function newConversation(skipSave, folderId) {
   if (activeConvId && window._daytonaSessions && window._daytonaSessions[activeConvId]) {
     daytonaClient.destroy(activeConvId).catch(() => {});
   }
-  _remoteRecentlyTouched.clear();
   const id = genConvId();
   const meta = { id, title: 'New Chat', titleSource: 'default', titleStatus: 'idle', titlePromptHash: '', created: Date.now(), updated: Date.now(), loopCount: 0, totalTokens: 0, contextTokens: 0, messageCount: 0 };
   if (folderId && convFolders.some(f => f.id === folderId)) {
