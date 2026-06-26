@@ -3373,30 +3373,6 @@ function shouldKeepReasoningForModel(model = API_MODEL) {
   return isDefaultReasoningContentModel(model);
 }
 
-function migrateLegacyProviderSettingsIntoProfiles() {
-  // If profiles already exist, do nothing.
-  const existing = _loadProviders();
-  if (existing && existing.providers && Object.keys(existing.providers).length) return;
-
-  const legacyProvider = (_userSettings.api_provider || CFG.api_provider || 'anthropic').trim();
-  const legacyType = (legacyProvider === 'anthropic') ? 'anthropic_compat' : 'openai_compat';
-  const legacyEndpoint = (_userSettings.api_endpoint || CFG.api_endpoint || (legacyType === 'anthropic_compat' ? 'https://api.anthropic.com' : 'https://api.openai.com')).trim();
-  const legacyKey = (_userSettings.api_key || CFG.api_key || '').trim();
-  const legacyModels = _userSettings.api_models || CFG.api_models || [];
-  const legacyDefaultModel = _userSettings.api_model || CFG.api_model || (legacyType === 'anthropic_compat' ? 'claude-sonnet-4-20250514' : 'gpt-4o');
-  const legacyModelContexts = _userSettings.model_contexts || CFG.model_contexts || {};
-  const legacyReasoningContentModels = normalizeReasoningContentModelsMap(_userSettings.reasoning_content_models || CFG.reasoning_content_models || {});
-
-  const id = _genProviderId();
-  const name = legacyProvider + ' (migrated)';
-  _saveProviders({
-    providers: {
-      [id]: { id, name, type: legacyType, endpoint: legacyEndpoint, apiKey: legacyKey, models: legacyModels, defaultModel: legacyDefaultModel, model_contexts: legacyModelContexts, reasoning_content_models: legacyReasoningContentModels }
-    }
-  });
-  try { localStorage.setItem(ACTIVE_PROVIDER_KEY, id); } catch {}
-}
-
 function getActiveProviderId() {
   try { return localStorage.getItem(ACTIVE_PROVIDER_KEY) || ''; } catch { return ''; }
 }
@@ -3416,8 +3392,6 @@ function getActiveProviderProfile() {
   // fallback: first provider
   return m[ids[0]];
 }
-
-migrateLegacyProviderSettingsIntoProfiles();
 
 let ACTIVE_PROVIDER = getActiveProviderProfile();
 let PROVIDER = (ACTIVE_PROVIDER && ACTIVE_PROVIDER.type) ? ACTIVE_PROVIDER.type : 'anthropic_compat';
