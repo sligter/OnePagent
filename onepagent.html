@@ -3300,6 +3300,42 @@ function _loadProviders() {
 function _saveProviders(obj) { try { localStorage.setItem(PROVIDERS_KEY, JSON.stringify(obj)); } catch {} }
 function _genProviderId() { return 'prov_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 
+function _migrateLegacySettingsToProviders() {
+  const providers = getProvidersMap();
+  if (Object.keys(providers).length) return;
+  const s = loadSettings();
+  if (!s || !s.api_key) return;
+  const id = _genProviderId();
+  const endpoint = s.api_endpoint || '';
+  const endpointLower = endpoint.toLowerCase();
+  let type = 'openai_compat';
+  if (endpointLower.includes('anthropic.com') || (!endpoint && !s.api_endpoint)) {
+    type = 'anthropic_compat';
+  }
+  const defaultEndpoint = type === 'anthropic_compat' ? 'https://api.anthropic.com' : 'https://api.openai.com';
+  providers[id] = {
+    id,
+    name: 'Default Provider',
+    type,
+    endpoint: endpoint || defaultEndpoint,
+    apiKey: s.api_key || '',
+    models: Array.isArray(s.api_models) ? s.api_models : [],
+    defaultModel: s.api_model || '',
+    imageModels: [],
+    videoModels: [],
+    defaultImageModel: '',
+    defaultVideoModel: '',
+    imageGenerationEndpoint: '',
+    imageEditEndpoint: '',
+    videoGenerationEndpoint: '',
+    videoStatusEndpoint: '',
+    model_contexts: s.model_contexts || {},
+    reasoning_content_models: s.reasoning_content_models || {}
+  };
+  _saveProviders({ providers });
+  setActiveProviderId(id);
+}
+
 // ── Sandbox config (local Pyodide/JS vs remote Daytona) ──────────
 const SANDBOX_CFG_KEY = 'ba_sandbox_config';
 const SANDBOX_DEFAULTS = Object.freeze({
@@ -3393,6 +3429,7 @@ function getActiveProviderProfile() {
   return m[ids[0]];
 }
 
+_migrateLegacySettingsToProviders();
 let ACTIVE_PROVIDER = getActiveProviderProfile();
 let PROVIDER = (ACTIVE_PROVIDER && ACTIVE_PROVIDER.type) ? ACTIVE_PROVIDER.type : 'anthropic_compat';
 let API_MODEL = localStorage.getItem('ba_selected_model') || (ACTIVE_PROVIDER && ACTIVE_PROVIDER.defaultModel) || _userSettings.api_model || CFG.api_model || 'claude-sonnet-4-20250514';
