@@ -4779,7 +4779,15 @@ function attachConversationRunDom(run) {
   return false;
 }
 function activateConversationRun(run) {
-  if (!run || run.deleted) return;
+  if (!run) return;
+  // A finished run that has already been unregistered from conversationRuns must
+  // NOT re-apply its snapshot: late fire-and-forget callbacks (media render, a
+  // tool await that resolved after teardown) would otherwise resurrect the dead
+  // run's globals over whatever conversation is now visible. A deleted-but-still-
+  // active run is intentionally allowed through so its remaining loop steps mutate
+  // ITS OWN globals (never persisted — see the finally guard) instead of silently
+  // no-oping and splicing content into the visible conversation.
+  if (!run.active && conversationRuns.get(run.convId) !== run) return;
   const prevRun = activeConvId ? conversationRuns.get(activeConvId) : null;
   if (prevRun && prevRun !== run) snapshotConversationRunState(prevRun);
   else if (activeConvId && activeConvId !== run.convId && activeConvId === visibleConvId) {
@@ -5442,7 +5450,10 @@ function newConversation(skipSave, folderId) {
   if (!skipSave) { saveConvMeta(); renderConvList(); }
 }
 
+let _switchSeq = 0;            // monotonically bumped per switchConversation call
+let _switchLoadInFlight = false; // true while a switch awaits its IndexedDB load (globals are stale)
 async function switchConversation(id, skipSave) {
+  const mySwitchSeq = ++_switchSeq;
   ensureVisibleConversationStateActive();
   if ((visibleConvId || activeConvId) === id && !skipSave) return;
   if (typeof closeMobileDrawers === 'function') closeMobileDrawers();
@@ -5451,7 +5462,7 @@ async function switchConversation(id, skipSave) {
     detachConversationRunDom(fromRun);
     snapshotConversationRunState(fromRun);
     if (!skipSave) saveConversationState(fromRun.convId, fromRun.state);
-  } else if (!skipSave && activeConvId) saveCurrentConv();
+  } else if (!skipSave && activeConvId && !_switchLoadInFlight) saveCurrentConv();
   const meta = convHistory.find(c => c.id === id);
   if (!meta) return;
   activeConvId = id;
@@ -5476,10 +5487,16 @@ async function switchConversation(id, skipSave) {
     syncLegacyRunFlags();
     updateButtons();
     setStatus('running', targetRun.statusText || t('status.streaming'));
+    _switchLoadInFlight = false;
     return;
   }
   // Load heavy data from IndexedDB
+  _switchLoadInFlight = true;
   const data = await loadConvDataFromDB(id);
+  // A newer switchConversation started while we awaited: bail before touching the
+  // globals so we don't overwrite the newer target's state (and leave the in-flight
+  // flag set — the newer switch owns it and will clear it).
+  if (mySwitchSeq !== _switchSeq) return;
   sessionEntries = data?.sessionEntries || [];
   activeEntryId = data?.activeEntryId || null;
   conversation = data?.conversation || [];
@@ -5524,6 +5541,7 @@ async function switchConversation(id, skipSave) {
   updateMemoryUI();
   closeFileViewer(true);
   visibleConversationState = captureConversationState(chatEl.innerHTML);
+  _switchLoadInFlight = false;
   syncLegacyRunFlags();
   updateButtons();
   setStatus('ready', t('status.ready'));
@@ -5911,6 +5929,7 @@ function renderConvList(options = {}) {
 }
 
 function resetConversationContext() {
+  ensureVisibleConversationStateActive();
   if (!activeConvId || !sessionEntries.length) return;
   appendSessionEntry('compaction', {
     summary: 'Context reset. Previous visible conversation history was intentionally excluded from future model context.',
@@ -5932,6 +5951,7 @@ function resetConversationContext() {
 }
 
 function clearConversation() {
+  ensureVisibleConversationStateActive();
   conversation = [];
   sessionEntries = [];
   activeEntryId = null;
@@ -11141,7 +11161,7 @@ const MEM_META_STORE = 'meta';
 const MEM_DEFAULTS = { enabled: false, autoExtract: true, maxRecall: 8, extractionModel: '' };
 let _memDbPromise = null;
 let _memCache = null;       // Array of all records, lazily loaded
-let _memExtractInFlight = 0; // prevent runaway parallel extractions
+const _memExtractInFlight = new Set(); // convIds currently extracting — prevent runaway parallel extractions PER conversation (not globally, which dropped concurrent conversations' extractions)
 
 function memGetSettings() {
   const s = loadSettings() || {};
@@ -11494,9 +11514,12 @@ function _memValidateExtracted(item) {
 }
 
 async function memExtractAfterTurn({ userText, assistantContent, loopCount: lc, convId }) {
-  // Concurrency guard — drop overlapping calls rather than pile them up.
-  if (_memExtractInFlight > 0) return;
-  _memExtractInFlight++;
+  // Concurrency guard — drop overlapping calls FOR THE SAME conversation rather
+  // than pile them up; a different conversation finishing at the same moment must
+  // still get its own extraction (a single global flag silently lost it).
+  const memKey = convId || '__nomem_conv__';
+  if (_memExtractInFlight.has(memKey)) return;
+  _memExtractInFlight.add(memKey);
   try {
     const cfg = memGetSettings();
     if (!cfg.enabled || !cfg.autoExtract) return;
@@ -11618,7 +11641,7 @@ async function memExtractAfterTurn({ userText, assistantContent, loopCount: lc, 
     if (added > 0 && typeof logMemEntry === 'function') logMemEntry('read', `Extracted ${added} memory item${added === 1 ? '' : 's'}`);
     if (added > 0 && document.getElementById('memoryModal')?.classList.contains('show')) renderMemoryList();
   } catch (e) { console.warn('memExtract failed', e); }
-  finally { _memExtractInFlight = Math.max(0, _memExtractInFlight - 1); }
+  finally { _memExtractInFlight.delete(memKey); }
 }
 
 // ── UI ────────────────────────────────────────────────────────────────
@@ -13354,6 +13377,7 @@ async function toolRunSubAgent(input) {
 // ─── Swarm tools ────────────────────────────────────────────────────────────
 // Run a single worker. Returns { run, result } where result may carry a `handoff` field.
 async function _runOneSwarmWorker({ roleId, task, outputFormat, context, chainHistory }) {
+  const convRun = currentRunContext; // owning conversation run; re-bind globals after each await
   const role = getSwarmRole(roleId);
   if (!role) return { error: `Unknown role "${roleId}". Available: ${listSwarmRoles().join(', ')}.` };
   if (swarmRunActive.workerCount >= swarmSettings.maxWorkersPerRun) {
@@ -13364,6 +13388,7 @@ async function _runOneSwarmWorker({ roleId, task, outputFormat, context, chainHi
   }
   swarmRunActive.workerCount++;
   const preCtx = await runHooks('pre_swarm_spawn', { role: roleId, task, output_format: outputFormat, context, runId: swarmRunActive.id, chainHistory });
+  if (convRun) activateConversationRun(convRun);
   if (preCtx._blocked) return { error: `Swarm spawn blocked by hook [${preCtx._blocked.by}]: ${preCtx._blocked.reason}` };
   const effRole = { ...role, objective: task, outputFormat: outputFormat || 'Concise text answer with specific citations.' };
   const run = { id: genSubAgentRunId(), kind: 'swarm', role: roleId, task: task.slice(0, 2000), context: (context || '').slice(0, 4000), status: 'running', startedAt: Date.now(), finishedAt: null, steps: 0, toolCalls: [], resultPreview: '', error: null, chainHistory: chainHistory ? [...chainHistory] : [], handoffFrom: chainHistory && chainHistory.length ? chainHistory[chainHistory.length - 1].id : null };
@@ -14302,28 +14327,41 @@ async function execBash(cmd) {
     case 'rm': { const ts = args.filter(a => !a.startsWith('-')); return ts.map(t => { const r = vfsDelete(t); return r.error || ''; }).filter(Boolean).join('\n'); }
     case 'cp': {
       if (args.length < 2) return 'cp: missing operand';
+      const rootVfs = vfs; // capture before any await; a concurrent run may swap global vfs during the graft
       const src = vfsResolve(args[0]);
       if (!src) return `cp: not found: ${args[0]}`;
       if (src.type !== 'file') return `Not a file: ${args[0]}`;
       const dstPath = normPath(args[1]);
       const parts = dstPath.slice(1).split('/'); const fn = parts.pop();
-      let n = vfs;
+      let n = rootVfs;
       for (const p of parts) { if (!n.children[p]) n.children[p] = { type: 'dir', children: {} }; n = n.children[p]; }
       await _vfsGraftNode(src, n, fn);
-      renderFileTree();
+      if (vfs === rootVfs) renderFileTree();
       return '';
     }
     case 'mv': {
       if (args.length < 2) return 'mv: missing operand';
+      const rootVfs = vfs; // capture before any await; global vfs may be swapped by a concurrent run mid-graft
       const src = vfsResolve(args[0]);
       if (!src) return `mv: not found: ${args[0]}`;
       if (src.type !== 'file') return `Not a file: ${args[0]}`;
+      // Resolve the source's parent + key against the captured tree NOW, so the
+      // post-graft delete removes the original from the same conversation's VFS
+      // (not whichever tree happens to be global after the await).
+      const srcNorm = normPath(args[0]);
+      const srcParts = srcNorm.slice(1).split('/'); const srcKey = srcParts.pop();
+      let srcParent = rootVfs;
+      for (const p of srcParts) { srcParent = (srcParent && srcParent.children) ? srcParent.children[p] : null; }
       const dstPath = normPath(args[1]);
       const parts = dstPath.slice(1).split('/'); const fn = parts.pop();
-      let n = vfs;
+      let n = rootVfs;
       for (const p of parts) { if (!n.children[p]) n.children[p] = { type: 'dir', children: {} }; n = n.children[p]; }
       await _vfsGraftNode(src, n, fn);
-      vfsDelete(args[0]);
+      if (srcParent && srcParent.children && srcParent.children[srcKey]) {
+        _unrefVfsSubtree(srcParent.children[srcKey]);
+        delete srcParent.children[srcKey];
+      }
+      if (vfs === rootVfs) renderFileTree();
       return '';
     }
     case 'find': { let bp = '.', np = '*'; for (let i = 0; i < args.length; i++) { if (args[i] === '-name' && args[i+1]) np = args[++i]; else if (!args[i].startsWith('-')) bp = args[i]; } return vfsGlob('**/' + np, bp).join('\n'); }
@@ -16138,6 +16176,7 @@ function cleanGeneratedMediaPrompt(text) {
     .trim();
 }
 async function generateMediaPromptWithAI(userText, kind, headId = activeEntryId) {
+  const run = currentRunContext; // pin the owning run so the abort signal can't drift to a concurrent conversation
   const fallback = buildContextualMediaPrompt(userText, kind, headId);
   const type = kind === 'video' ? 'video' : 'image';
   const history = getRecentConversationTextForMediaPrompt(headId) || '(none)';
@@ -16155,7 +16194,7 @@ async function generateMediaPromptWithAI(userText, kind, headId = activeEntryId)
     const body = PROVIDER === 'anthropic_compat'
       ? { model: API_MODEL, max_tokens: 900, system, messages: [{ role: 'user', content: request }] }
       : { model: API_MODEL, stream: false, messages: [{ role: 'system', content: system }, { role: 'user', content: request }] };
-    const resp = await fetchWithRetry(getLLMUrl(), { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(body), signal: getCurrentRunAbortSignal() });
+    const resp = await fetchWithRetry(getLLMUrl(), { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(body), signal: (run?.abortCtrl || abortCtrl)?.signal });
     if (!resp.ok) return fallback;
     const data = await resp.json();
     const text = PROVIDER === 'anthropic_compat'
@@ -16494,9 +16533,11 @@ async function _runAgentLoop(userText, options = {}) {
       if (run) activateConversationRun(run);
       if (!resp.ok) {
         const errorText = await resp.text();
+        if (run) activateConversationRun(run);
         if (isContextLengthError(resp.status, errorText) && !retriedAfterContextCompact) {
           appendSystemMsg('Context length exceeded. Compacting context and retrying once...', run);
           await compactMemory({ trigger: 'context_error', snapshot: requestSnapshot });
+          if (run) activateConversationRun(run);
           const retryMessages = buildConversationFromEntries();
           const retrySnapshot = await buildContextSnapshot(retryMessages, promptEntryId, { memoryRecallKey, run });
           applyContextSnapshot(retrySnapshot);
@@ -16776,7 +16817,11 @@ async function _runAgentLoop(userText, options = {}) {
       snapshotConversationRunState(run);
       if (!run.deleted) await saveConversationState(run.convId, run.state, { andRenderList: true });
       if (!run.deleted && stoppedBy !== 'abort') notifyTaskFinished({ convId: run.convId, kind: 'chat', outcome: stoppedBy === 'error' ? 'error' : 'done' });
-      conversationRuns.delete(run.convId);
+      // Only unregister if we're still the registered run: a new run may have been
+      // started for this same conversation during the await above (run.active was
+      // already false, so isConversationRunning let a fresh submit through). Deleting
+      // unconditionally would orphan that live run — unstoppable and duplicable.
+      if (conversationRuns.get(run.convId) === run) conversationRuns.delete(run.convId);
       if (visibleConvId === run.convId) {
         applyConversationState(run.state);
         activeConvId = run.convId;
@@ -17759,7 +17804,7 @@ async function runMediaGeneration(mode, prompt, filePaths, options = {}) {
   let resp, errorText = '';
   for (const variant of getMediaGenerationBodyVariants(mode)) {
     const body = buildMediaGenerationBody(mode, prompt, model, images, variant);
-    resp = await fetchWithRetry(url, { method: 'POST', headers: getProviderAuthHeaders({ json: true, provider: mediaProvider }), body: JSON.stringify(body), signal: getCurrentRunAbortSignal() });
+    resp = await fetchWithRetry(url, { method: 'POST', headers: getProviderAuthHeaders({ json: true, provider: mediaProvider }), body: JSON.stringify(body), signal: (run?.abortCtrl || abortCtrl)?.signal });
     if (run) activateConversationRun(run);
     if (resp.ok) break;
     errorText = await resp.text();
