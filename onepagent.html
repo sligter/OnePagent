@@ -1262,7 +1262,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     <span class="status-text" id="statusText" data-i18n="status.ready">Ready</span>
     <div class="top-right">
       <span class="provider-badge" id="providerBadge"><select id="providerSelect" class="provider-select" title="Provider"><option value="">provider...</option></select> / <select id="modelSelect" class="model-select"><option value="">model...</option></select></span>
-      <span class="think-badge" id="thinkBadge" title="Thinking level" data-i18n-title="think.title"><select id="thinkSelect" class="think-select" onchange="setThinkingLevel(this.value)"><option value="auto" data-i18n="think.auto">Auto</option><option value="off" data-i18n="think.off">Off</option><option value="minimal" data-i18n="think.minimal">Minimal</option><option value="low" data-i18n="think.low">Low</option><option value="medium" data-i18n="think.medium">Medium</option><option value="high" data-i18n="think.high">High</option><option value="xhigh" data-i18n="think.xhigh">XHigh</option></select></span>
+      <span class="think-badge" id="thinkBadge" title="Thinking level" data-i18n-title="think.title"><select id="thinkSelect" class="think-select" onchange="setThinkingLevel(this.value)"><option value="auto" data-i18n="think.auto">Auto</option><option value="none" data-i18n="think.none">None</option><option value="low" data-i18n="think.low">Low</option><option value="medium" data-i18n="think.medium">Medium</option><option value="high" data-i18n="think.high">High</option><option value="xhigh" data-i18n="think.xhigh">XHigh</option><option value="max" data-i18n="think.max">Max</option></select></span>
       <span class="loop-badge" id="loopBadge">Loop: 0</span>
       <span class="loop-badge" id="tokenBadge">Tokens: 0</span>
       <button class="top-btn hide-mobile" onclick="clearConversation()" data-i18n="btn.clear">Clear</button>
@@ -2244,15 +2244,15 @@ const I18N = {
     'code.copied': 'Copied',
     'code.preview': 'Preview',
     'code.previewTitle': 'Preview HTML in a sandboxed frame',
-    // Thinking level
+    // Thinking level (OpenAI reasoning_effort: none/low/medium/high/xhigh/max)
     'think.title': 'Reasoning / thinking level',
     'think.auto': 'Think: Auto',
-    'think.off': 'Think: Off',
-    'think.minimal': 'Think: Minimal',
+    'think.none': 'Think: None',
     'think.low': 'Think: Low',
     'think.medium': 'Think: Medium',
     'think.high': 'Think: High',
     'think.xhigh': 'Think: XHigh',
+    'think.max': 'Think: Max',
     'think.unsupported': 'Current provider or model may ignore the thinking level.',
     // Skills
     'skills.market': 'Market',
@@ -2702,15 +2702,15 @@ const I18N = {
     'code.copied': '已复制',
     'code.preview': '预览',
     'code.previewTitle': '在沙盒中预览 HTML',
-    // Thinking level
+    // Thinking level (OpenAI reasoning_effort: none/low/medium/high/xhigh/max)
     'think.title': '思考 / 推理程度',
     'think.auto': '思考：自动',
-    'think.off': '思考：关',
-    'think.minimal': '思考：极简',
+    'think.none': '思考：无',
     'think.low': '思考：低',
     'think.medium': '思考：中',
     'think.high': '思考：高',
     'think.xhigh': '思考：极高',
+    'think.max': '思考：最大',
     'think.unsupported': '当前提供方或模型可能会忽略思考程度设置。',
     // Skills
     'skills.market': '市场',
@@ -3108,18 +3108,34 @@ function updateLangButton() {
 // THINKING / REASONING LEVEL — maps to provider-specific API params
 // ═══════════════════════════════════════════════════════════════════
 const THINK_KEY = 'ba_think_level';
-// Thinking tiers.
+// Thinking tiers aligned with OpenAI reasoning_effort:
+//   none | low | medium | high | xhigh | max
 // - 'auto' means: do not send any thinking/reasoning parameters (provider default).
-// - 'off' is a UI label that may still be treated as a concrete level by some providers; keep it separate.
-const THINK_LEVELS = ['auto', 'off', 'minimal', 'low', 'medium', 'high', 'xhigh'];
+// Legacy aliases: off→none, minimal→low (older UI values still load cleanly).
+const THINK_LEVELS = ['auto', 'none', 'low', 'medium', 'high', 'xhigh', 'max'];
+const THINK_LEVEL_ALIASES = { off: 'none', minimal: 'low' };
+function normalizeThinkLevel(level) {
+  let v = String(level || '');
+  if (THINK_LEVEL_ALIASES[v]) v = THINK_LEVEL_ALIASES[v];
+  return THINK_LEVELS.includes(v) ? v : null;
+}
 let THINK_LEVEL = (() => {
-  try { const v = localStorage.getItem(THINK_KEY); if (THINK_LEVELS.includes(v)) return v; } catch {}
+  try {
+    const raw = localStorage.getItem(THINK_KEY);
+    const v = normalizeThinkLevel(raw);
+    if (v) {
+      // Persist canonical name when upgrading from legacy off/minimal.
+      if (raw !== v) try { localStorage.setItem(THINK_KEY, v); } catch {}
+      return v;
+    }
+  } catch {}
   return 'auto';
 })();
 // Approximate token budgets for Anthropic extended thinking.
-const ANTHROPIC_THINK_BUDGET = { minimal: 1024, low: 2048, medium: 8000, high: 16000, xhigh: 32000 };
+// 'none' / missing => do not enable thinking (budget 0).
+const ANTHROPIC_THINK_BUDGET = { low: 2048, medium: 8000, high: 16000, xhigh: 32000, max: 64000 };
 function setThinkingLevel(level) {
-  if (!THINK_LEVELS.includes(level)) level = 'off';
+  level = normalizeThinkLevel(level) || 'auto';
   THINK_LEVEL = level;
   try { localStorage.setItem(THINK_KEY, level); } catch {}
   const badge = document.getElementById('thinkBadge');
@@ -3146,9 +3162,9 @@ function applyThinkingToRequestBody(body, provider) {
       // Extended-thinking requires temperature to be unset/1; let the server default it.
       delete body.temperature;
     }
+    // 'none' => leave thinking disabled (no thinking field).
   } else {
-    // OpenAI-compatible (openai, deepseek, etc.)
-    // `minimal` is accepted by GPT-5 family; other o-series accept low/medium/high.
+    // OpenAI-compatible: reasoning_effort values none|low|medium|high|xhigh|max
     body.reasoning_effort = THINK_LEVEL;
     // Also send the nested form used by Responses API; chat-completions ignores unknown keys.
     body.reasoning = { effort: THINK_LEVEL };
@@ -10351,7 +10367,10 @@ async function _applyRemoteState(remote, objs, blobMap) {
       }
       if (s.theme) try { localStorage.setItem('ba_theme', s.theme); } catch {}
       if (s.language === 'zh' || s.language === 'en') try { localStorage.setItem(I18N_KEY, s.language); CURRENT_LANG = s.language; } catch {}
-      if (THINK_LEVELS.includes(s.thinkLevel)) try { localStorage.setItem(THINK_KEY, s.thinkLevel); THINK_LEVEL = s.thinkLevel; } catch {}
+      {
+        const tl = normalizeThinkLevel(s.thinkLevel);
+        if (tl) try { localStorage.setItem(THINK_KEY, tl); THINK_LEVEL = tl; } catch {}
+      }
       if (MEDIA_GENERATION_MODES.has(s.mediaMode)) try { localStorage.setItem(MEDIA_MODE_KEY, s.mediaMode); MEDIA_MODE = s.mediaMode; } catch {}
       if (s.mediaModels && typeof s.mediaModels === 'object') try { localStorage.setItem(MEDIA_MODEL_KEY, JSON.stringify(s.mediaModels)); MEDIA_MODELS = { ...s.mediaModels }; } catch {}
       if (typeof s.marketplaceRegistry === 'string' && s.marketplaceRegistry) try { localStorage.setItem('ba_mp_registry', s.marketplaceRegistry); } catch {}

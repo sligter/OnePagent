@@ -39,7 +39,7 @@ Open one HTML file and you get a fully-featured, internet-aware, programmable, e
 |---|---|
 | Single-file deployment | Drop `onepagent.html` on any static host or open it locally |
 | Multi-provider LLM | Anthropic / OpenAI / DeepSeek with custom endpoints; BYOK keys are stored locally and sent directly to the configured API endpoint |
-| Reasoning levels | Inline selector with `off / minimal / low / medium / high / xhigh` tiers |
+| Reasoning levels | Inline selector with OpenAI `none / low / medium / high / xhigh / max` tiers (plus Auto) |
 | Long context compaction | Per-model context window with automatic LLM-driven summary compression |
 | Long-term memory | Opt-in persistent facts / preferences / events / skills across sessions — auto-extraction, agent tools, manual CRUD, tag & keyword search |
 | MCP Servers | Paste `mcpServers` JSON to import (`streamable_http` / `sse`), Bearer auth, optional CORS proxy |

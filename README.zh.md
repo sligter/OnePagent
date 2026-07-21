@@ -39,7 +39,7 @@
 |---|---|
 | 单文件部署 | `onepagent.html` 放入任意静态主机或本地打开即可运行 |
 | 多 LLM 供应商 | Anthropic / OpenAI / DeepSeek，可自定义 Endpoint；BYOK 密钥仅保存在本地，并在请求时直接发送到配置的 API 端点 |
-| 推理程度控制 | 顶栏内联选择器，支持 `off / minimal / low / medium / high / xhigh` 六档 |
+| 推理程度控制 | 顶栏内联选择器，对齐 OpenAI `none / low / medium / high / xhigh / max` 六档（另有 Auto） |
 | 长上下文压缩 | 每模型独立 context window，接近上限时自动 LLM 摘要压缩 |
 | 长期记忆 | 可选开启，跨会话持久保留事实 / 偏好 / 事件 / 技能，自动提取 + Agent 工具调用 + 手动增删，标签与关键词检索 |
 | MCP 服务器 | 粘贴 `mcpServers` JSON 即可导入（`streamable_http` / `sse`），支持 Bearer 鉴权与 CORS 代理 |
